@@ -9,7 +9,7 @@
       <object class="GtkBox">
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkLabel" id="current_remote_label">
+          <object class="GtkLabel" id="source_device_label">
             <property name="single-line-mode">True</property>
             <property name="hexpand">yes</property>
             <property name="halign">center</property>
@@ -21,6 +21,17 @@
         </child>
         <child>
           <object class="GtkSeparator">
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel" id="mirror_devices_label">
+            <property name="single-line-mode">True</property>
+            <property name="hexpand">yes</property>
+            <property name="halign">center</property>
+            <property name="label" translatable="yes">Mirror Devices</property>
+            <style>
+              <class name="big"/>
+            </style>
           </object>
         </child>
       </object>
