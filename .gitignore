@@ -1,0 +1,6 @@
+/.flatpak
+/.flatpak-builder
+/.vscode
+/_build
+/target
+result*
