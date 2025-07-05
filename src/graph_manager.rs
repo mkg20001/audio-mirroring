@@ -171,10 +171,14 @@ mod imp {
         fn port_media_type_changed(&self, id: u32, media_type: MediaType) {
             let mut nodes = self.nodes.borrow_mut();
             let port2node = self.port2node.borrow();
-            let node_id = port2node.get(&id).expect("");
-            let node = nodes.get_mut(node_id).expect("");
-            if let Some(port) = node.get_port_mut(id) {
-                port.set_media_type(media_type);
+            if let Some(node_id) = port2node.get(&id) {
+                let node = nodes.get_mut(node_id).expect("");
+                if let Some(port) = node.get_port_mut(id) {
+                    port.set_media_type(media_type);
+                }
+            } else {
+                log::warn!("Node for port (id: {id}) not found in graph manager");
+                return;
             }
         }
 
@@ -184,13 +188,17 @@ mod imp {
             log::info!("Removing port from graph: id {}, node_id: {}", id, node_id);
 
             let mut nodes = self.nodes.borrow_mut();
-            let mut node = nodes.get_mut(&node_id).expect("");
-            node.remove_port(id)
+            let mut node = nodes.get_mut(&node_id);
+            if let Some(node) = node {
+                node.remove_port(id)
+            } else {
+                log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
+                return;
+            }
 
             /*let mut items = self.items.borrow_mut();
 
             let Some(node) = items.get(&node_id) else {
-                log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
                 return;
             };
             let Ok(node) = node.clone().dynamic_cast::<graph::Node>() else {
