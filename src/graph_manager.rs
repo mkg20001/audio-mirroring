@@ -19,6 +19,7 @@ use adw::{glib, prelude::*, subclass::prelude::*};
 use pipewire::channel::Sender as PwSender;
 
 use crate::{ui::main, GtkMessage, PipewireMessage};
+use crate::types::{};
 use crate::ui::main::MainView;
 
 mod imp {
@@ -26,8 +27,8 @@ mod imp {
 
     use std::{cell::OnceCell, cell::RefCell, collections::HashMap};
 
-    use crate::{MediaType, NodeType};
-    use crate::ui::main::Node;
+    use crate::{types, MediaType, NodeType};
+    use crate::types::Node;
 
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::GraphManager)]
@@ -39,7 +40,8 @@ mod imp {
         pub connection_banner: OnceCell<adw::Banner>,
 
         pub pw_sender: OnceCell<PwSender<GtkMessage>>,
-        pub items: RefCell<HashMap<u32, glib::Object>>,
+        pub nodes: RefCell<HashMap<u32, Node>>,
+        pub port2node: RefCell<HashMap<u32, u32>>,
     }
 
     #[glib::object_subclass]
@@ -113,47 +115,37 @@ mod imp {
 
             log::info!("Adding node to graph: id {}", id);
 
-            let node = main::Node::new(name, id);
+            let node = Node::new(name, id);
 
-            self.items.borrow_mut().insert(id, node.clone().upcast());
+            self.nodes.borrow_mut().insert(id, node);
 
-            self.obj().main().add_node(node, node_type);
+            //self.obj().main().add_node(node, node_type);
         }
 
         /// Update a node tooltip to the view.
         fn node_name_changed(&self, id: u32, node_name: &str, media_name: &str) {
             // Update node name
-            /* let items = self.items.borrow();
 
-            let Some(node) = items.get(&id) else {
+            if let Some(node) = self.nodes.borrow_mut().get_mut(&id) {
+                node.set_name(node_name);
+                node.set_media_name(media_name);
+            } else {
                 log::warn!("Node (id: {id}) for changed name not found in graph manager");
                 return;
-            };
-            let Some(node) = node.dynamic_cast_ref::<graph::Node>() else {
-                log::warn!("Graph Manager item under node (id: {id}) is not a node");
-                return;
-            };
-
-            node.set_node_name(node_name);
-            node.set_media_name(media_name); */
+            }
         }
 
         /// Remove the node with the specified id from the view.
         fn remove_node(&self, id: u32) {
             // Remove node from main
             // Do something if the node is currently being used as source or mirror target
-            /* log::info!("Removing node from graph: id {}", id);
 
-            let Some(node) = self.items.borrow_mut().remove(&id) else {
+            log::info!("Removing node from graph: id {}", id);
+
+            let Some(_) = self.nodes.borrow_mut().remove(&id) else {
                 log::warn!("Unknown node (id={id}) removed from graph");
                 return;
             };
-            let Ok(node) = node.dynamic_cast::<graph::Node>() else {
-                log::warn!("Graph Manager item under node id {id} is not a node");
-                return;
-            };
-
-            self.obj().graph().remove_node(&node); */
         }
 
         /// Add a new port to the view.
@@ -164,62 +156,38 @@ mod imp {
             node_id: u32,
             direction: pipewire::spa::utils::Direction,
         ) {
-            /* log::info!("Adding port to graph: id {}", id);
+            log::info!("Adding port to graph: id {}", id);
 
-            let mut items = self.items.borrow_mut();
+            let mut nodes = self.nodes.borrow_mut();
 
-            let Some(node) = items.get(&node_id) else {
+            if let Some(mut node) = nodes.get_mut(&node_id) {
+                node.add_port(types::Port::new(name, id, direction));
+            } else {
                 log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
                 return;
-            };
-            let Ok(node) = node.clone().dynamic_cast::<graph::Node>() else {
-                log::warn!("Graph Manager item under node id {node_id} is not a node");
-                return;
-            };
-
-            let port = graph::Port::new(id, name, direction);
-
-            // Create or delete a link if the widget emits the "port-toggled" signal.
-            port.connect_local(
-                "port_toggled",
-                false,
-                glib::clone!(@weak self as app => @default-return None, move |args| {
-                    // Args always look like this: &[widget, id_port_from, id_port_to]
-                    let port_from = args[1].get::<u32>().unwrap();
-                    let port_to = args[2].get::<u32>().unwrap();
-
-                    app.toggle_link(port_from, port_to);
-
-                    None
-                }),
-            );
-
-            items.insert(id, port.clone().upcast());
-
-            node.add_port(port); */
+            }
         }
 
         fn port_media_type_changed(&self, id: u32, media_type: MediaType) {
-            /* let items = self.items.borrow();
-
-            let Some(port) = items.get(&id) else {
-                log::warn!("Port (id: {id}) for changed media type not found in graph manager");
-                return;
-            };
-            let Some(port) = port.dynamic_cast_ref::<graph::Port>() else {
-                log::warn!("Graph Manager item under port id {id} is not a port");
-                return;
-            };
-
-            port.set_media_type(media_type.as_raw()) */
+            let mut nodes = self.nodes.borrow_mut();
+            let port2node = self.port2node.borrow();
+            let node_id = port2node.get(&id).expect("");
+            let node = nodes.get_mut(node_id).expect("");
+            if let Some(port) = node.get_port_mut(id) {
+                port.set_media_type(media_type);
+            }
         }
 
         /// Remove the port with the id `id` from the node with the id `node_id`
         /// from the view.
         fn remove_port(&self, id: u32, node_id: u32) {
-            /*log::info!("Removing port from graph: id {}, node_id: {}", id, node_id);
+            log::info!("Removing port from graph: id {}, node_id: {}", id, node_id);
 
-            let mut items = self.items.borrow_mut();
+            let mut nodes = self.nodes.borrow_mut();
+            let mut node = nodes.get_mut(&node_id).expect("");
+            node.remove_port(id)
+
+            /*let mut items = self.items.borrow_mut();
 
             let Some(node) = items.get(&node_id) else {
                 log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
@@ -317,7 +285,7 @@ mod imp {
                 log::warn!("Link (id: {id}) for changed media type not found in graph manager");
                 return;
             };
-            let Some(link) = link.dynamic_cast_ref::<graph::Link>() else {
+            let Some(link) = link.dynamic_cast_ref::<main::Link>() else {
                 log::warn!("Graph Manager item under link id {id} is not a link");
                 return;
             };
@@ -326,10 +294,10 @@ mod imp {
 
         // Toggle a link between the two specified ports on the remote pipewire server.
         fn toggle_link(&self, port_from: u32, port_to: u32) {
-            /*let sender = self.pw_sender.get().expect("pw_sender shoud be set");
+            let sender = self.pw_sender.get().expect("pw_sender shoud be set");
             sender
                 .send(crate::GtkMessage::ToggleLink { port_from, port_to })
-                .expect("Failed to send message");*/
+                .expect("Failed to send message");
         }
 
         /// Remove the link with the specified id from the view.
@@ -340,16 +308,16 @@ mod imp {
                 log::warn!("Unknown Link (id={id}) removed from graph");
                 return;
             };
-            let Ok(link) = link.dynamic_cast::<graph::Link>() else {
+            let Ok(link) = link.dynamic_cast::<main::Link>() else {
                 log::warn!("Graph Manager item under link id {id} is not a link");
                 return;
-            };
+            };*/
 
-            self.obj().graph().remove_link(&link); */
+            // self.obj().main().remove_link(&link);
         }
 
         fn clear(&self) {
-            self.items.borrow_mut().clear();
+            //self.items.borrow_mut().clear();
             //self.obj().graph().clear();
         }
     }

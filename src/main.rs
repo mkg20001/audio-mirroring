@@ -1,4 +1,5 @@
-// Copyright 2021 Tom A. Wagner <tom.a.wagner@protonmail.com>
+#![feature(sized_hierarchy)]// Copyright 2021 Tom A. Wagner <tom.a.wagner@protonmail.com>
+
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License version 3 as published by
@@ -18,6 +19,7 @@ mod application;
 mod graph_manager;
 mod pipewire_connection;
 mod ui;
+mod types;
 
 use adw::{gtk, prelude::*};
 use pipewire::spa::{param::format::MediaType, utils::Direction};
