@@ -23,7 +23,7 @@ mod imp {
     use std::{
         collections::HashSet,
     };
-    use std::cell::Cell;
+    use std::cell::{Cell, RefCell};
 
     #[derive(glib::Properties, gtk::CompositeTemplate, Default)]
     #[properties(wrapper_type = super::MainView)]
@@ -31,7 +31,7 @@ mod imp {
     pub struct MainView {
         #[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
-
+        pub(super) ports: RefCell<HashSet<String>>
         /*#[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
         #[property(

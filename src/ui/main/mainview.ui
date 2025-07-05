@@ -4,7 +4,7 @@
   <template class="AudioSharingMainView" parent="GtkWidget">
     <style>
       <class name="card"></class>
-    </style>>
+    </style>
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>

@@ -107,6 +107,7 @@ mod imp {
 
         /// Add a new node to the view.
         fn add_node(&self, id: u32, name: &str, node_type: Option<NodeType>) {
+            // Add node to main, update selectables for source and mirror
             /* log::info!("Adding node to graph: id {}", id);
 
             let node = graph::Node::new(name, id);
@@ -118,6 +119,7 @@ mod imp {
 
         /// Update a node tooltip to the view.
         fn node_name_changed(&self, id: u32, node_name: &str, media_name: &str) {
+            // Update node name
             /* let items = self.items.borrow();
 
             let Some(node) = items.get(&id) else {
@@ -135,6 +137,8 @@ mod imp {
 
         /// Remove the node with the specified id from the view.
         fn remove_node(&self, id: u32) {
+            // Remove node from main
+            // Do something if the node is currently being used as source or mirror target
             /* log::info!("Removing node from graph: id {}", id);
 
             let Some(node) = self.items.borrow_mut().remove(&id) else {
