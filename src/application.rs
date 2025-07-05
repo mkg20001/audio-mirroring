@@ -175,7 +175,7 @@ impl Application {
 
         imp.graph_manager
             .set(GraphManager::new(
-                //&imp.window.graph(),
+                &imp.window.main(),
                 &imp.window.connection_banner(),
                 pw_sender,
                 gtk_receiver,

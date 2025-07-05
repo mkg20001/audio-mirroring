@@ -18,7 +18,8 @@ use adw::{glib, prelude::*, subclass::prelude::*};
 
 use pipewire::channel::Sender as PwSender;
 
-use crate::{GtkMessage, PipewireMessage};
+use crate::{ui::main, GtkMessage, PipewireMessage};
+use crate::ui::main::MainView;
 
 mod imp {
     use super::*;
@@ -26,17 +27,18 @@ mod imp {
     use std::{cell::OnceCell, cell::RefCell, collections::HashMap};
 
     use crate::{MediaType, NodeType};
+    use crate::ui::main::Node;
 
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::GraphManager)]
     pub struct GraphManager {
-        /*#[property(get, set, construct_only)]
-        pub graph: OnceCell<crate::ui::graph::GraphView>,*/
+        #[property(get, set, construct_only)]
+        pub main: OnceCell<main::MainView>,
 
         #[property(get, set, construct_only)]
         pub connection_banner: OnceCell<adw::Banner>,
 
-        pub pw_sender: OnceCell<PwSender<crate::GtkMessage>>,
+        pub pw_sender: OnceCell<PwSender<GtkMessage>>,
         pub items: RefCell<HashMap<u32, glib::Object>>,
     }
 
@@ -108,13 +110,14 @@ mod imp {
         /// Add a new node to the view.
         fn add_node(&self, id: u32, name: &str, node_type: Option<NodeType>) {
             // Add node to main, update selectables for source and mirror
-            /* log::info!("Adding node to graph: id {}", id);
 
-            let node = graph::Node::new(name, id);
+            log::info!("Adding node to graph: id {}", id);
+
+            let node = main::Node::new(name, id);
 
             self.items.borrow_mut().insert(id, node.clone().upcast());
 
-            self.obj().graph().add_node(node, node_type); */
+            self.obj().main().add_node(node, node_type);
         }
 
         /// Update a node tooltip to the view.
@@ -362,13 +365,13 @@ async fn receive(graph_manager: GraphManager, receiver: async_channel::Receiver<
 
 impl GraphManager {
     pub fn new(
-        //graph: &GraphView,
+        main: &MainView,
         connection_banner: &adw::Banner,
         sender: PwSender<GtkMessage>,
         receiver: async_channel::Receiver<PipewireMessage>,
     ) -> Self {
         let res: Self = glib::Object::builder()
-            //.property("graph", graph)
+            .property("main", main)
             .property("connection-banner", connection_banner)
             .build();
 

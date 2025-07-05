@@ -1,8 +1,9 @@
 use adw::{gio, gtk, prelude::*, subclass::prelude::*};
 
-//use super::graph;
+use super::main;
 
 mod imp {
+    use crate::ui::main;
     use crate::ui::main::MainView;
     use super::*;
 
@@ -18,9 +19,9 @@ mod imp {
         #[template_child]
         #[property(type = gtk::Label, get = |_| self.current_remote_label.clone())]
         pub current_remote_label: TemplateChild<gtk::Label>,
-        /*#[template_child]
-        #[property(type = graph::GraphView, get = |_| self.graph.clone())]
-        pub graph: TemplateChild<graph::GraphView>,*/
+        #[template_child]
+        #[property(type = main::MainView, get = |_| self.main.clone())]
+        pub main: TemplateChild<MainView>
     }
 
     #[glib::object_subclass]
@@ -31,8 +32,6 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             // Ensure custom types are registered
-            //graph::GraphView::ensure_type();
-            //graph::ZoomEntry::ensure_type();
             MainView::ensure_type();
 
             klass.bind_template();

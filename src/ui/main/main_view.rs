@@ -14,8 +14,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::collections::HashSet;
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use pipewire::spa::utils::Direction;
+use crate::NodeType;
+use crate::ui::main::{Node, Port};
 
 mod imp {
     use super::*;
@@ -24,6 +27,9 @@ mod imp {
         collections::HashSet,
     };
     use std::cell::{Cell, RefCell};
+    use glib::{List, Value};
+    use crate::NodeType;
+    use crate::ui::main::Node;
 
     #[derive(glib::Properties, gtk::CompositeTemplate, Default)]
     #[properties(wrapper_type = super::MainView)]
@@ -31,7 +37,13 @@ mod imp {
     pub struct MainView {
         #[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
-        pub(super) ports: RefCell<HashSet<String>>
+        /// Stores nodes and their positions.
+        pub(super) nodes: RefCell<HashSet<Node>>,
+        pub(super) ports: RefCell<HashSet<Port>>,
+        pub(super) source: Cell<u32>,
+        // TODO: make list
+        pub(super) targets: Cell<u32>,
+
         /*#[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
         #[property(
@@ -97,6 +109,9 @@ mod imp {
     impl WidgetImpl for MainView {}
 
     impl MainView {
+        pub fn add_node(&self, node: Node, node_type: Option<NodeType>) {
+
+        }
     }
 }
 
@@ -108,5 +123,11 @@ glib::wrapper! {
 impl MainView {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn add_node(&self, node: Node, node_type: Option<NodeType>) {
+        let imp = self.imp();
+        let nodes = imp.nodes.borrow_mut();
+        // nodes.add(node);
     }
 }
