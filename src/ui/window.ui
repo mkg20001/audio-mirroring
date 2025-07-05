@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="Adw" version="1.4"/>
+  <menu id="primary_menu">
+    <section>
+      <item>
+        <attribute name="label">_About AudioSharing</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+    </section>
+  </menu>
+  <template class="AudioSharingWindow" parent="AdwApplicationWindow">
+    <property name="default-width">448</property>
+    <property name="default-height">448</property>
+    <child>
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="AdwHeaderBar" id="header_bar">
+            <property name="title-widget">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label">AudioSharing - Mirror Audio Sources</property>
+                    <property name="single-line-mode">True</property>
+                    <property name="ellipsize">end</property>
+                    <property name="width-chars">5</property>
+                    <property name="vexpand">yes</property>
+                    <property name="valign">end</property>
+                    <style>
+                      <class name="title"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="current_remote_label">
+                    <property name="single-line-mode">True</property>
+                    <property name="ellipsize">start</property>
+                    <property name="vexpand">yes</property>
+                    <property name="valign">start</property>
+                    <style>
+                      <class name="caption"/>
+                      <class name="dim-label"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </property>
+            <child type="end">
+              <object class="GtkMenuButton">
+                <property name="icon-name">open-menu-symbolic</property>
+                <property name="menu-model">primary_menu</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <property name="content">
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="AdwBanner" id="connection_banner">
+                <property name="title" translatable="yes">Disconnected</property>
+                <property name="revealed">false</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkOverlay">
+                <child>
+                  <object class="GtkScrolledWindow">
+                    <child>
+                      <object class="AudioSharingGraphView" id="graph">
+                        <property name="hexpand">true</property>
+                        <property name="vexpand">true</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child type="overlay">
+                  <object class="AudioSharingZoomEntry">
+                    <property name="zoomed-widget">graph</property>
+                    <property name="halign">end</property>
+                    <property name="valign">end</property>
+                    <property name="margin-end">24</property>
+                    <property name="margin-bottom">24</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+</interface>
