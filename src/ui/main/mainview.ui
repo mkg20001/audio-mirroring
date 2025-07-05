@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="AudioSharingMainView" parent="GtkWidget">
+    <style>
+      <class name="card"></class>
+    </style>>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkLabel" id="current_remote_label">
+            <property name="single-line-mode">True</property>
+            <!--<property name="ellipsize">start</property>
+            <property name="vexpand">yes</property>
+            <property name="valign">start</property>!-->
+            <property name="label" translatable="yes">Source Device</property>
+            <!--<style>
+              <class name="caption"/>
+              <class name="dim-label"/>
+            </style>-->
+            <style>
+              <class name="big"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparator">
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
