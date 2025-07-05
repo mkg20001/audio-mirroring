@@ -23,10 +23,11 @@ use crate::types::{};
 use crate::ui::main::MainView;
 
 mod imp {
+    use std::option::Option;
     use super::*;
 
     use std::{cell::OnceCell, cell::RefCell, collections::HashMap};
-
+    use log::warn;
     use crate::{types, MediaType, NodeType};
     use crate::types::Node;
 
@@ -53,6 +54,16 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for GraphManager {}
+
+    enum CandidateType {
+        Application,
+        Device,
+    }
+
+    struct Candidate {
+        id: u32,
+        kind: CandidateType,
+    }
 
     impl GraphManager {
         pub async fn receive(&self, receiver: async_channel::Receiver<crate::PipewireMessage>) {
@@ -109,6 +120,37 @@ mod imp {
             }
         }
 
+        fn get_candiates_source(&self) -> Vec<Candidate> {
+            self.nodes.borrow().iter().filter_map(|(_, node)| {
+                if node.has_port_by_label("output_FL") && node.has_port_by_label("output_FR") {
+                    Some(Candidate {
+                        id: node.get_id(),
+                        kind: CandidateType::Application,
+                    })
+                } else if node.has_port_by_label("monitor_FL") && node.has_port_by_label("monitor_FR") {
+                    Some(Candidate {
+                        id: node.get_id(),
+                        kind: CandidateType::Device,
+                    })
+                } else {
+                    None
+                }
+            }).collect()
+        }
+
+        fn get_candidates_target(&self) -> Vec<Candidate> {
+            self.nodes.borrow().iter().filter_map(|(_, node)| {
+                if node.has_port_by_label("playback_FR") && node.has_port_by_label("playback_FL") {
+                    Some(Candidate {
+                        id: node.get_id(),
+                        kind: CandidateType::Device
+                    })
+                } else {
+                    None
+                }
+            }).collect()
+        }
+
         /// Add a new node to the view.
         fn add_node(&self, id: u32, name: &str, node_type: Option<NodeType>) {
             // Add node to main, update selectables for source and mirror
@@ -118,6 +160,12 @@ mod imp {
             let node = Node::new(name, id);
 
             self.nodes.borrow_mut().insert(id, node);
+
+            self.nodes.borrow().iter().for_each(|(_, node)| {
+                let name = node.get_name();
+                let labels = node.get_port_labels().join(", ");
+                log::warn!("{name}: {labels}")
+            })
 
             //self.obj().main().add_node(node, node_type);
         }
@@ -162,6 +210,7 @@ mod imp {
 
             if let Some(mut node) = nodes.get_mut(&node_id) {
                 node.add_port(types::Port::new(name, id, direction));
+                self.port2node.borrow_mut().insert(node_id, id);
             } else {
                 log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
                 return;

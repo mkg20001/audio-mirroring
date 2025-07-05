@@ -32,6 +32,9 @@ impl Node {
     pub fn has_port_by_label(&self, label: &str) -> bool {
         self.get_port_by_label(label).is_some()
     }
+    pub fn get_port_labels(&self) -> Vec<String> {
+        self.ports.iter().map(|(_, port)| port.get_label()).collect()
+    }
 
     pub fn set_name(&mut self, name: &str) { self.name = name.to_string() }
     pub fn set_media_name(&mut self, media_name: &str) { self.media_name = media_name.to_string() }
