@@ -3,6 +3,7 @@ use adw::{gio, gtk, prelude::*, subclass::prelude::*};
 //use super::graph;
 
 mod imp {
+    use crate::ui::main::MainView;
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate, glib::Properties)]
@@ -32,6 +33,7 @@ mod imp {
             // Ensure custom types are registered
             //graph::GraphView::ensure_type();
             //graph::ZoomEntry::ensure_type();
+            MainView::ensure_type();
 
             klass.bind_template();
         }

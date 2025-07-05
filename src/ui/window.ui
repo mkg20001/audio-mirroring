@@ -64,6 +64,16 @@
                 <property name="revealed">false</property>
               </object>
             </child>
+            <child>
+              <object class="GtkScrolledWindow">
+                <child>
+                  <object class="AudioSharingMainView" id="main">
+                    <property name="hexpand">true</property>
+                    <property name="vexpand">true</property>
+                  </object>
+                </child>
+              </object>
+            </child>
             <!--<child>
               <object class="GtkOverlay">
                 <child>

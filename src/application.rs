@@ -26,7 +26,7 @@ use pipewire::channel::Sender;
 
 use crate::{graph_manager::GraphManager, ui, GtkMessage, PipewireMessage};
 
-static STYLE: &str = include_str!("style.css");
+//static STYLE: &str = include_str!("style.css");
 static APP_ID: &str = "io.mkg20001.AudioSharing";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
 static AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
@@ -72,7 +72,7 @@ mod imp {
 
             // Load CSS from the STYLE variable.
             let provider = gtk::CssProvider::new();
-            provider.load_from_data(STYLE);
+            //provider.load_from_data(STYLE);
             gtk::style_context_add_provider_for_display(
                 &gtk::gdk::Display::default().expect("Error initializing gtk css provider."),
                 &provider,
