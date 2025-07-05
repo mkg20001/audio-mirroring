@@ -14,11 +14,15 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The view presented to the user.
-//!
-//! This module contains gtk widgets needed to present the graphical user interface.
-
-//pub mod graph;
-
-mod window;
-pub use window::*;
+mod graph_view;
+pub use graph_view::*;
+mod node;
+pub use node::*;
+mod port;
+pub use port::*;
+mod port_handle;
+pub use port_handle::*;
+mod link;
+pub use link::*;
+mod zoomentry;
+pub use zoomentry::*;

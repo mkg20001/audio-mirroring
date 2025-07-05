@@ -43,7 +43,7 @@ mod imp {
     #[derive(Default)]
     pub struct Application {
         pub(super) window: ui::Window,
-        //pub(super) graph_manager: OnceCell<GraphManager>,
+        pub(super) graph_manager: OnceCell<GraphManager>,
     }
 
     #[glib::object_subclass]

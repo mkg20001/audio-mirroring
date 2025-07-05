@@ -18,20 +18,20 @@ use adw::{glib, prelude::*, subclass::prelude::*};
 
 use pipewire::channel::Sender as PwSender;
 
-use crate::{ui::graph::GraphView, GtkMessage, PipewireMessage};
+use crate::{GtkMessage, PipewireMessage};
 
 mod imp {
     use super::*;
 
     use std::{cell::OnceCell, cell::RefCell, collections::HashMap};
 
-    use crate::{ui::graph, MediaType, NodeType};
+    use crate::{MediaType, NodeType};
 
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::GraphManager)]
     pub struct GraphManager {
-        #[property(get, set, construct_only)]
-        pub graph: OnceCell<crate::ui::graph::GraphView>,
+        /*#[property(get, set, construct_only)]
+        pub graph: OnceCell<crate::ui::graph::GraphView>,*/
 
         #[property(get, set, construct_only)]
         pub connection_banner: OnceCell<adw::Banner>,
@@ -107,18 +107,18 @@ mod imp {
 
         /// Add a new node to the view.
         fn add_node(&self, id: u32, name: &str, node_type: Option<NodeType>) {
-            log::info!("Adding node to graph: id {}", id);
+            /* log::info!("Adding node to graph: id {}", id);
 
             let node = graph::Node::new(name, id);
 
             self.items.borrow_mut().insert(id, node.clone().upcast());
 
-            self.obj().graph().add_node(node, node_type);
+            self.obj().graph().add_node(node, node_type); */
         }
 
         /// Update a node tooltip to the view.
         fn node_name_changed(&self, id: u32, node_name: &str, media_name: &str) {
-            let items = self.items.borrow();
+            /* let items = self.items.borrow();
 
             let Some(node) = items.get(&id) else {
                 log::warn!("Node (id: {id}) for changed name not found in graph manager");
@@ -130,12 +130,12 @@ mod imp {
             };
 
             node.set_node_name(node_name);
-            node.set_media_name(media_name);
+            node.set_media_name(media_name); */
         }
 
         /// Remove the node with the specified id from the view.
         fn remove_node(&self, id: u32) {
-            log::info!("Removing node from graph: id {}", id);
+            /* log::info!("Removing node from graph: id {}", id);
 
             let Some(node) = self.items.borrow_mut().remove(&id) else {
                 log::warn!("Unknown node (id={id}) removed from graph");
@@ -146,7 +146,7 @@ mod imp {
                 return;
             };
 
-            self.obj().graph().remove_node(&node);
+            self.obj().graph().remove_node(&node); */
         }
 
         /// Add a new port to the view.
@@ -157,7 +157,7 @@ mod imp {
             node_id: u32,
             direction: pipewire::spa::utils::Direction,
         ) {
-            log::info!("Adding port to graph: id {}", id);
+            /* log::info!("Adding port to graph: id {}", id);
 
             let mut items = self.items.borrow_mut();
 
@@ -189,11 +189,11 @@ mod imp {
 
             items.insert(id, port.clone().upcast());
 
-            node.add_port(port);
+            node.add_port(port); */
         }
 
         fn port_media_type_changed(&self, id: u32, media_type: MediaType) {
-            let items = self.items.borrow();
+            /* let items = self.items.borrow();
 
             let Some(port) = items.get(&id) else {
                 log::warn!("Port (id: {id}) for changed media type not found in graph manager");
@@ -204,13 +204,13 @@ mod imp {
                 return;
             };
 
-            port.set_media_type(media_type.as_raw())
+            port.set_media_type(media_type.as_raw()) */
         }
 
         /// Remove the port with the id `id` from the node with the id `node_id`
         /// from the view.
         fn remove_port(&self, id: u32, node_id: u32) {
-            log::info!("Removing port from graph: id {}, node_id: {}", id, node_id);
+            /*log::info!("Removing port from graph: id {}, node_id: {}", id, node_id);
 
             let mut items = self.items.borrow_mut();
 
@@ -231,7 +231,7 @@ mod imp {
                 return;
             };
 
-            node.remove_port(&port);
+            node.remove_port(&port); */
         }
 
         /// Add a new link to the view.
@@ -243,7 +243,7 @@ mod imp {
             active: bool,
             media_type: MediaType,
         ) {
-            log::info!("Adding link to graph: id {}", id);
+            /*log::info!("Adding link to graph: id {}", id);
 
             let mut items = self.items.borrow_mut();
 
@@ -276,11 +276,11 @@ mod imp {
             self.graph
                 .get()
                 .expect("graph should be set")
-                .add_link(link);
+                .add_link(link);*/
         }
 
         fn link_state_changed(&self, id: u32, active: bool) {
-            log::info!(
+            /*log::info!(
                 "Link state changed: Link (id={id}) is now {}",
                 if active { "active" } else { "inactive" }
             );
@@ -296,7 +296,7 @@ mod imp {
                 return;
             };
 
-            link.set_active(active);
+            link.set_active(active);*/
         }
 
         fn link_format_changed(
@@ -304,7 +304,7 @@ mod imp {
             id: u32,
             media_type: pipewire::spa::param::format::MediaType,
         ) {
-            let items = self.items.borrow();
+            /*let items = self.items.borrow();
 
             let Some(link) = items.get(&id) else {
                 log::warn!("Link (id: {id}) for changed media type not found in graph manager");
@@ -314,20 +314,20 @@ mod imp {
                 log::warn!("Graph Manager item under link id {id} is not a link");
                 return;
             };
-            link.set_media_type(media_type);
+            link.set_media_type(media_type);*/
         }
 
         // Toggle a link between the two specified ports on the remote pipewire server.
         fn toggle_link(&self, port_from: u32, port_to: u32) {
-            let sender = self.pw_sender.get().expect("pw_sender shoud be set");
+            /*let sender = self.pw_sender.get().expect("pw_sender shoud be set");
             sender
                 .send(crate::GtkMessage::ToggleLink { port_from, port_to })
-                .expect("Failed to send message");
+                .expect("Failed to send message");*/
         }
 
         /// Remove the link with the specified id from the view.
         fn remove_link(&self, id: u32) {
-            log::info!("Removing link from graph: id {}", id);
+            /*log::info!("Removing link from graph: id {}", id);
 
             let Some(link) = self.items.borrow_mut().remove(&id) else {
                 log::warn!("Unknown Link (id={id}) removed from graph");
@@ -338,12 +338,12 @@ mod imp {
                 return;
             };
 
-            self.obj().graph().remove_link(&link);
+            self.obj().graph().remove_link(&link); */
         }
 
         fn clear(&self) {
             self.items.borrow_mut().clear();
-            self.obj().graph().clear();
+            //self.obj().graph().clear();
         }
     }
 }
@@ -358,13 +358,13 @@ async fn receive(graph_manager: GraphManager, receiver: async_channel::Receiver<
 
 impl GraphManager {
     pub fn new(
-        graph: &GraphView,
+        //graph: &GraphView,
         connection_banner: &adw::Banner,
         sender: PwSender<GtkMessage>,
         receiver: async_channel::Receiver<PipewireMessage>,
     ) -> Self {
         let res: Self = glib::Object::builder()
-            .property("graph", graph)
+            //.property("graph", graph)
             .property("connection-banner", connection_banner)
             .build();
 

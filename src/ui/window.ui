@@ -64,7 +64,7 @@
                 <property name="revealed">false</property>
               </object>
             </child>
-            <child>
+            <!--<child>
               <object class="GtkOverlay">
                 <child>
                   <object class="GtkScrolledWindow">
@@ -86,7 +86,7 @@
                   </object>
                 </child>
               </object>
-            </child>
+            </child>-->
           </object>
         </property>
       </object>
