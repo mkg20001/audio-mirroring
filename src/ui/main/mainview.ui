@@ -11,14 +11,9 @@
         <child>
           <object class="GtkLabel" id="current_remote_label">
             <property name="single-line-mode">True</property>
-            <!--<property name="ellipsize">start</property>
-            <property name="vexpand">yes</property>
-            <property name="valign">start</property>!-->
+            <property name="hexpand">yes</property>
+            <property name="halign">center</property>
             <property name="label" translatable="yes">Source Device</property>
-            <!--<style>
-              <class name="caption"/>
-              <class name="dim-label"/>
-            </style>-->
             <style>
               <class name="big"/>
             </style>
