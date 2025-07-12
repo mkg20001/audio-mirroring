@@ -28,8 +28,9 @@ pub enum CandidateType {
 }
 
 pub struct Candidate {
-    id: u32,
-    kind: CandidateType,
+    pub id: u32,
+    pub kind: CandidateType,
+    pub label: String,
 }
 
 mod imp {
@@ -130,11 +131,13 @@ mod imp {
                     Some(Candidate {
                         id: node.get_id(),
                         kind: CandidateType::Application,
+                        label: node.get_name(),
                     })
                 } else if node.has_port_by_label("monitor_FL") && node.has_port_by_label("monitor_FR") {
                     Some(Candidate {
                         id: node.get_id(),
                         kind: CandidateType::Device,
+                        label: node.get_name(),
                     })
                 } else {
                     None
@@ -147,7 +150,8 @@ mod imp {
                 if node.has_port_by_label("playback_FR") && node.has_port_by_label("playback_FL") {
                     Some(Candidate {
                         id: node.get_id(),
-                        kind: CandidateType::Device
+                        kind: CandidateType::Device,
+                        label: node.get_name(),
                     })
                 } else {
                     None

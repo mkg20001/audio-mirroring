@@ -15,6 +15,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
+use adw::gtk::{ListStore, StringList};
 use pipewire::spa::utils::Direction;
 use crate::graph_manager::Candidate;
 use super::Port;
@@ -94,5 +95,17 @@ impl Dropdown {
     pub fn update_candidates(&self, c: Vec<Candidate>) {
         let imp = self.imp();
         imp.candidates.replace(c);
+        // Create a list of strings
+        let candidates_ref = imp.candidates.borrow();
+
+        let labels: Vec<String> = candidates_ref.iter()
+            .map(|c| c.label.clone())
+            .collect();
+
+        let string_list = StringList::new(&labels.iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<&str>>());
+
+        imp.dropdown.set_model(Some(&string_list));
     }
 }
