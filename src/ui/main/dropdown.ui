@@ -5,17 +5,8 @@
         <style>
             <class name="card"></class>
         </style>
-        <child>
+        <child>     
             <object class="GtkDropDown" id="dropdown">
-                <property name="model">
-                    <object class="GtkStringList">
-                        <items>
-                            <item translatable="yes">Option 1</item>
-                            <item translatable="yes">Option 2</item>
-                            <item translatable="yes">Option 3</item>
-                        </items>
-                    </object>
-                </property>
             </object>
         </child>
     </template>

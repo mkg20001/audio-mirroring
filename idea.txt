@@ -1,0 +1,33 @@
+Audio Sharing
+
+Share from:
+
+[soundcode Q30] (select default audio input)
+
+(can select audio device or window)
+
+Share to:
+
+[device selection] [plus button]
+
+
+---
+
+graphmanager needs to handle this:
+listen to events, when something we did gets unplugged (for example VLC does this) we re-connect it
+
+when device: connect monitor_FL/FR to playback_FL/FR of target
+when application: connect playback_FL/FR to playback_FL/FR of target
+
+add volume control for target/master and output devices
+
+---
+
+ui:
+[dropdown - (icon) label] - (button with tick)
+
+-> switch to "fixed mode" after clicking tick
+(icon) label - (button with pen)
+
+at the bottom show status indicator "mirroring to X devices - (last event)" - "not mirroring"
+last event is just msg like "link XY disconnected - was reconnected automatically"

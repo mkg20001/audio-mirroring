@@ -250,13 +250,15 @@ mod imp {
         fn remove_port(&self, id: u32, node_id: u32) {
             log::info!("Removing port from graph: id {}, node_id: {}", id, node_id);
 
-            let mut nodes = self.nodes.borrow_mut();
-            let mut node = nodes.get_mut(&node_id);
-            if let Some(node) = node {
-                node.remove_port(id);
-            } else {
-                log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
-                return;
+            {
+                let mut nodes = self.nodes.borrow_mut();
+                let mut node = nodes.get_mut(&node_id);
+                if let Some(node) = node {
+                    node.remove_port(id);
+                } else {
+                    log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
+                    return;
+                }
             }
 
             self.update_candidates()
