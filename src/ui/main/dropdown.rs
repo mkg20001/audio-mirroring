@@ -50,6 +50,8 @@ use super::*;
         pub(super) use_mode: TemplateChild<gtk::Box>,
         #[template_child]
         pub(super) edit_btn: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub(super) volume_slider: TemplateChild<gtk::Scale>,
     }
 
     #[glib::object_subclass]
@@ -63,7 +65,7 @@ use super::*;
 
             klass.bind_template();
 
-            klass.set_css_name("Dropdown");
+            klass.set_css_name("dropdown");
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -77,6 +79,11 @@ use super::*;
             self.parent_constructed();
 
             self.use_mode.hide();
+
+            /*self.confirm_btn.connect_clicked(move |_| {
+                select_mode.hide();
+                use_mode.show();
+            });*/
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
             let factory = gtk::SignalListItemFactory::new();

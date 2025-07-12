@@ -51,6 +51,21 @@
                         </child>
                     </object>
                 </child>
+                <child>
+                    <object class="GtkScale" id="volume_slider">
+                        <property name="orientation">horizontal</property>
+                        <property name="adjustment">
+                            <object class="GtkAdjustment">
+                                <property name="lower">0</property>
+                                <property name="upper">100</property>
+                                <property name="step-increment">1</property>
+                                <property name="page-increment">10</property>
+                                <property name="value">50</property> <!-- Initial value -->
+                            </object>
+                        </property>
+                        <property name="draw-value">true</property> <!-- Shows the numeric value -->
+                    </object>
+                </child>
             </object>
         </child>
     </template>
