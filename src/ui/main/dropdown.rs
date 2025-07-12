@@ -16,7 +16,7 @@
 
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use pipewire::spa::utils::Direction;
-
+use crate::graph_manager::Candidate;
 use super::Port;
 
 mod imp {
@@ -33,6 +33,8 @@ mod imp {
     pub struct Dropdown {
         #[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
+
+        pub(super) candidates: RefCell<Vec<Candidate>>,
 
         #[template_child]
         pub(super) dropdown: TemplateChild<gtk::DropDown>,
@@ -88,25 +90,9 @@ impl Dropdown {
             .property("pipewire-id", pipewire_id)*/
             .build()
     }
-    /* pub fn new(name: &str, pipewire_id: u32) -> Self {
-        glib::Object::builder()
-            .property("node-name", name)
-            .property("pipewire-id", pipewire_id)
-            .build()
-    }
 
-    pub fn add_port(&self, port: Port) {
+    pub fn update_candidates(&self, c: Vec<Candidate>) {
         let imp = self.imp();
-        imp.ports.borrow_mut().insert(port);
-        imp.update_ports();
+        imp.candidates.replace(c);
     }
-
-    pub fn remove_port(&self, port: &Port) {
-        let imp = self.imp();
-        if imp.ports.borrow_mut().remove(port) {
-            imp.update_ports();
-        } else {
-            log::warn!("Tried to remove non-existant port widget from node");
-        }
-    }*/
 }

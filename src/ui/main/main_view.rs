@@ -14,7 +14,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::borrow::BorrowMut;
 use std::collections::HashSet;
+use std::error::Error;
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use pipewire::spa::utils::Direction;
 use crate::graph_manager::Candidate;
@@ -135,6 +137,8 @@ impl MainView {
 
     pub fn update_candidates(&self, source: Vec<Candidate>, target: Vec<Candidate>) {
         let imp = self.imp();
+        imp.source_dd.update_candidates(source);
+        imp.target_dd.update_candidates(target);
         let nodes = imp.nodes.borrow_mut();
         // nodes.add(node);
     }
