@@ -10,3 +10,5 @@ mod link;
 pub use link::*;
 mod dropdown;
 pub use dropdown::*;
+mod candidate;
+pub use candidate::*;
