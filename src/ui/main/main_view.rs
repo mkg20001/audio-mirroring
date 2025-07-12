@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use pipewire::spa::utils::Direction;
 use crate::NodeType;
-use crate::ui::main::{Node, Port};
+use crate::ui::main::{Node, Port, Dropdown};
 
 mod imp {
     use super::*;
@@ -26,10 +26,9 @@ mod imp {
     use std::{
         collections::HashSet,
     };
-    use std::cell::{Cell, RefCell};
+    use std::cell::{Cell, OnceCell, RefCell};
     use glib::{List, Value};
     use crate::NodeType;
-    use crate::ui::main::Node;
 
     #[derive(glib::Properties, gtk::CompositeTemplate, Default)]
     #[properties(wrapper_type = super::MainView)]
@@ -43,6 +42,14 @@ mod imp {
         pub(super) source: Cell<u32>,
         // TODO: make list
         pub(super) targets: Cell<u32>,
+
+        #[template_child]
+        #[property(type = super::Dropdown, get = |_| self.source_dd.clone())]
+        pub source_dd: TemplateChild<Dropdown>,
+
+        #[template_child]
+        #[property(type = super::Dropdown, get = |_| self.target_dd.clone())]
+        pub target_dd: TemplateChild<Dropdown>,
 
         /*#[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,

@@ -20,6 +20,11 @@
           </object>
         </child>
         <child>
+          <object class="AudioSharingDropdown" id="source_dd">
+            <property name="hexpand">true</property>
+          </object>
+        </child>
+        <child>
           <object class="GtkSeparator">
           </object>
         </child>
@@ -32,6 +37,11 @@
             <style>
               <class name="big"/>
             </style>
+          </object>
+        </child>
+        <child>
+          <object class="AudioSharingDropdown" id="target_dd">
+            <property name="hexpand">true</property>
           </object>
         </child>
       </object>
