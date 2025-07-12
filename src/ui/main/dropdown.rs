@@ -40,6 +40,16 @@ use super::*;
 
         #[template_child]
         pub(super) dropdown: TemplateChild<gtk::DropDown>,
+
+        #[template_child]
+        pub(super) select_mode: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub(super) confirm_btn: TemplateChild<gtk::Button>,
+
+        #[template_child]
+        pub(super) use_mode: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub(super) edit_btn: TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -64,8 +74,9 @@ use super::*;
     #[glib::derived_properties]
     impl ObjectImpl for Dropdown {
         fn constructed(&self) {
-
             self.parent_constructed();
+
+            self.use_mode.hide();
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
             let factory = gtk::SignalListItemFactory::new();
