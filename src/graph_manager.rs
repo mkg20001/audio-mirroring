@@ -22,6 +22,16 @@ use crate::{ui::main, GtkMessage, PipewireMessage};
 use crate::types::{};
 use crate::ui::main::MainView;
 
+pub enum CandidateType {
+    Application,
+    Device,
+}
+
+pub struct Candidate {
+    id: u32,
+    kind: CandidateType,
+}
+
 mod imp {
     use std::option::Option;
     use super::*;
@@ -54,16 +64,6 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for GraphManager {}
-
-    enum CandidateType {
-        Application,
-        Device,
-    }
-
-    struct Candidate {
-        id: u32,
-        kind: CandidateType,
-    }
 
     impl GraphManager {
         pub async fn receive(&self, receiver: async_channel::Receiver<crate::PipewireMessage>) {
@@ -120,7 +120,11 @@ mod imp {
             }
         }
 
-        fn get_candiates_source(&self) -> Vec<Candidate> {
+        fn update_candidates(&self) {
+            self.obj().main().update_candidates(self.get_candidates_source(), self.get_candidates_target());
+        }
+
+        fn get_candidates_source(&self) -> Vec<Candidate> {
             self.nodes.borrow().iter().filter_map(|(_, node)| {
                 if node.has_port_by_label("output_FL") && node.has_port_by_label("output_FR") {
                     Some(Candidate {
@@ -165,9 +169,9 @@ mod imp {
                 let name = node.get_name();
                 let labels = node.get_port_labels().join(", ");
                 log::warn!("{name}: {labels}")
-            })
+            });
 
-            //self.obj().main().add_node(node, node_type);
+            self.update_candidates()
         }
 
         /// Update a node tooltip to the view.
@@ -181,6 +185,8 @@ mod imp {
                 log::warn!("Node (id: {id}) for changed name not found in graph manager");
                 return;
             }
+
+            self.update_candidates()
         }
 
         /// Remove the node with the specified id from the view.
@@ -194,6 +200,8 @@ mod imp {
                 log::warn!("Unknown node (id={id}) removed from graph");
                 return;
             };
+
+            self.update_candidates()
         }
 
         /// Add a new port to the view.
@@ -206,15 +214,15 @@ mod imp {
         ) {
             log::info!("Adding port to graph: id {}", id);
 
-            let mut nodes = self.nodes.borrow_mut();
-
-            if let Some(mut node) = nodes.get_mut(&node_id) {
+            if let Some(mut node) = self.nodes.borrow_mut().get_mut(&node_id) {
                 node.add_port(types::Port::new(name, id, direction));
                 self.port2node.borrow_mut().insert(node_id, id);
             } else {
                 log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
                 return;
             }
+
+            self.update_candidates()
         }
 
         fn port_media_type_changed(&self, id: u32, media_type: MediaType) {
@@ -229,6 +237,8 @@ mod imp {
                 log::warn!("Node for port (id: {id}) not found in graph manager");
                 return;
             }
+
+            self.update_candidates()
         }
 
         /// Remove the port with the id `id` from the node with the id `node_id`
@@ -239,11 +249,13 @@ mod imp {
             let mut nodes = self.nodes.borrow_mut();
             let mut node = nodes.get_mut(&node_id);
             if let Some(node) = node {
-                node.remove_port(id)
+                node.remove_port(id);
             } else {
                 log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
                 return;
             }
+
+            self.update_candidates()
 
             /*let mut items = self.items.borrow_mut();
 

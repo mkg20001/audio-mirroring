@@ -17,6 +17,7 @@
 use std::collections::HashSet;
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use pipewire::spa::utils::Direction;
+use crate::graph_manager::Candidate;
 use crate::NodeType;
 use crate::ui::main::{Node, Port, Dropdown};
 
@@ -132,7 +133,7 @@ impl MainView {
         glib::Object::new()
     }
 
-    pub fn add_node(&self, node: Node, node_type: Option<NodeType>) {
+    pub fn update_candidates(&self, source: Vec<Candidate>, target: Vec<Candidate>) {
         let imp = self.imp();
         let nodes = imp.nodes.borrow_mut();
         // nodes.add(node);
