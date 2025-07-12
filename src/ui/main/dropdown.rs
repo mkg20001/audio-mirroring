@@ -17,11 +17,12 @@
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use adw::gtk::{ListStore, StringList};
 use pipewire::spa::utils::Direction;
-use crate::graph_manager::Candidate;
+use crate::graph_manager::{Candidate, CandidateType};
 use super::Port;
 
 mod imp {
-    use super::*;
+    use crate::gtk::{ListItemFactory, Box, Image, Label, Orientation};
+use super::*;
 
     use std::{
         cell::{Cell, RefCell},
@@ -63,8 +64,131 @@ mod imp {
     #[glib::derived_properties]
     impl ObjectImpl for Dropdown {
         fn constructed(&self) {
+
             self.parent_constructed();
+
+            /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
+            let factory = gtk::SignalListItemFactory::new();
+
+            factory.connect_setup(|_, item| {
+                let label = gtk::Label::new(None);
+                item.set_child(Some(&label));
+            });
+
+            factory.connect_bind(move |_, item| {
+                let obj = item.item().unwrap();
+                let label = item.child().unwrap().downcast::<gtk::Label>().unwrap();
+
+                let value = name_expr.evaluate(Some(&obj)).unwrap();
+                let name = value.get::<String>().unwrap();
+                label.set_text(&name);
+            });
+
+            self.dropdown.set_factory(Some(&factory));*/
+
+            // Create a factory for custom list items
+            /*let factory = ListItemFactory::new();
+            factory.connect_setup(move |_, list_item| {
+                let hbox = Box::new(Orientation::Horizontal, 6);
+
+                let icon = Image::new();
+                icon.set_pixel_size(16);
+
+                let label = Label::new(None);
+                hbox.append(&icon);
+                hbox.append(&label);
+
+                list_item.set_child(Some(&hbox));
+            });
+
+            factory.connect_bind(move |_, list_item| {
+                let item = list_item
+                    .item()
+                    .and_downcast::<glib::Boxed<Item>>()
+                    .expect("Expected an Item");
+
+                let hbox = list_item
+                    .child()
+                    .and_downcast::<Box>()
+                    .expect("Expected GtkBox");
+
+                let icon = hbox
+                    .first_child()
+                    .and_downcast::<Image>()
+                    .expect("Expected Image");
+
+                let label = hbox
+                    .last_child()
+                    .and_downcast::<Label>()
+                    .expect("Expected Label");
+
+                icon.set_icon_name(Some(&item.icon_name));
+                label.set_label(&item.label);
+            });*/
+
+            // Create item data and store in ListStore
+            /*let items = vec![
+                Item {
+                    label: "Home".to_string(),
+                    icon_name: "go-home-symbolic".to_string(),
+                },
+                Item {
+                    label: "Settings".to_string(),
+                    icon_name: "preferences-system-symbolic".to_string(),
+                },
+                Item {
+                    label: "Help".to_string(),
+                    icon_name: "help-browser-symbolic".to_string(),
+                },
+            ];
+
+            let model = ListStore::new(Item::static_type());
+            for item in items {
+                model.append(&glib::Object::new::<glib::Object>(&[
+                    ("label", &item.label),
+                    ("icon-name", &item.icon_name),
+                ])
+                    .unwrap());
+            }
+
+            // Create a factory
+            let factory = SignalListItemFactory::new();
+
+            factory.connect_setup(|_, list_item| {
+                let hbox = Box::new(Orientation::Horizontal, 6);
+
+                let image = Image::new();
+                image.set_pixel_size(16);
+                let label = Label::new(None);
+
+                hbox.append(&image);
+                hbox.append(&label);
+
+                list_item.set_child(Some(&hbox));
+            });
+
+            factory.connect_bind(|_, list_item| {
+                let item = list_item
+                    .item()
+                    .and_downcast_ref::<Object>()
+                    .expect("Item should be a glib::Object");
+
+                let label_text = item.property::<String>("label");
+                let icon_name = item.property::<String>("icon-name");
+
+                if let Some(hbox) = list_item.child().and_downcast::<Box>() {
+                    if let Some(image) = hbox.first_child().and_downcast::<Image>() {
+                        image.set_icon_name(Some(&icon_name));
+                    }
+                    if let Some(label) = hbox.last_child().and_downcast::<Label>() {
+                        label.set_label(&label_text);
+                    }
+                }
+            });*/
+
+            // self.dropdown.set_factory(Some(&factory));
         }
+
 
         fn dispose(&self) {
             if let Some(child) = self.obj().first_child() {
@@ -99,7 +223,10 @@ impl Dropdown {
         let candidates_ref = imp.candidates.borrow();
 
         let labels: Vec<String> = candidates_ref.iter()
-            .map(|c| c.label.clone())
+            .map(|c| c.label.clone() + match c.kind { // TODO: use icons - application=window, device=speaker
+                CandidateType::Device => " (device)",
+                CandidateType::Application => " (application)",
+            })
             .collect();
 
         let string_list = StringList::new(&labels.iter()
