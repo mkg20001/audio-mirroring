@@ -30,4 +30,9 @@ ui:
 (icon) label - (button with pen)
 
 at the bottom show status indicator "mirroring to X devices - (last event)" - "not mirroring"
-last event is just msg like "link XY disconnected - was reconnected automatically"
+last event is just msg like "link X<->Y was disconnected, reconnected automatically"
+
+---
+
+todo:
+- make Candidate a UI element similar to Node
