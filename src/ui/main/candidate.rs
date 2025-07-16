@@ -162,6 +162,6 @@ impl Candidate {
 
 impl From<&CandidateData> for Candidate {
     fn from(data: &CandidateData) -> Self {
-        Candidate::new(data.id().unwrap(), data.kind().unwrap().as_raw(), data.label().unwrap())
+        Candidate::new(data.id(), data.kind().as_raw(), data.label())
     }
 }

@@ -73,7 +73,7 @@ mod imp {
             match pspec.name() {
                 "id" => self.id.get().to_value(),
                 "kind" => self.kind.get().as_raw().to_value(),
-                "label" => self.label.get().to_value(),
+                "label" => self.label.take().to_value(),
                 _ => unimplemented!(),
             }
         }
@@ -82,7 +82,11 @@ mod imp {
             match pspec.name() {
                 "id" => self.id.set(value.get().unwrap()),
                 "kind" => self.kind.set(value.get().unwrap()),
-                "label" => self.label.set(value.get().unwrap()),
+                "label" => {
+                    if let Ok(new_label) = value.get() {
+                        self.label.set(new_label)
+                    }
+                },
                 _ => unimplemented!(),
             }
         }
@@ -102,27 +106,27 @@ impl CandidateData {
             .build()
     }
 
-    pub fn id(&self) -> Option<u32> {
-        self.property("id")
+    pub fn id(&self) -> u32 {
+        self.property::<u32>("id")
     }
 
-    pub fn set_id(&self, id: Option<&u32>) {
+    pub fn set_id(&self, id: u32) {
         self.set_property("id", id);
     }
 
-    pub fn kind(&self) -> Option<CandidateType> {
-        self.property("kind")
+    pub fn kind(&self) -> CandidateType {
+        CandidateType::from_raw(self.property::<u32>("kind"))
     }
 
-    pub fn set_kind(&self, kind: Option<&CandidateType>) {
-        self.set_property("kind", kind);
+    pub fn set_kind(&self, kind: CandidateType) {
+        self.set_property("kind", kind.as_raw());
     }
 
-    pub fn label(&self) -> Option<String> {
-        self.property("label")
+    pub fn label(&self) -> String {
+        self.property::<String>("label")
     }
 
-    pub fn set_label(&self, label: Option<&String>) {
+    pub fn set_label(&self, label: &str) {
         self.set_property("label", label);
     }
 }
