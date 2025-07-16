@@ -122,17 +122,17 @@ mod imp {
         fn get_candidates_source(&self) -> Vec<CandidateData> {
             self.nodes.borrow().iter().filter_map(|(_, node)| {
                 if node.has_port_by_label("output_FL") && node.has_port_by_label("output_FR") {
-                    Some(CandidateData {
-                        id: node.get_id(),
-                        kind: CandidateType::Application,
-                        label: node.get_name(),
-                    })
+                    Some(CandidateData::new(
+                        node.get_id(),
+                        CandidateType::Application,
+                        node.get_name(),
+                    ))
                 } else if node.has_port_by_label("monitor_FL") && node.has_port_by_label("monitor_FR") {
-                    Some(CandidateData {
-                        id: node.get_id(),
-                        kind: CandidateType::Device,
-                        label: node.get_name(),
-                    })
+                    Some(CandidateData::new(
+                        node.get_id(),
+                        CandidateType::Device,
+                        node.get_name(),
+                    ))
                 } else {
                     None
                 }
@@ -142,11 +142,11 @@ mod imp {
         fn get_candidates_target(&self) -> Vec<CandidateData> {
             self.nodes.borrow().iter().filter_map(|(_, node)| {
                 if node.has_port_by_label("playback_FR") && node.has_port_by_label("playback_FL") {
-                    Some(CandidateData {
-                        id: node.get_id(),
-                        kind: CandidateType::Device,
-                        label: node.get_name(),
-                    })
+                    Some(CandidateData::new(
+                        node.get_id(),
+                        CandidateType::Device,
+                        node.get_name(),
+                    ))
                 } else {
                     None
                 }

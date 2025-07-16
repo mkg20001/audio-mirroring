@@ -37,18 +37,10 @@ mod imp {
         fn default() -> Self {
             Self {
                 id: Cell::default(),
-                kind: Cell::default(),
+                kind: Cell::new(CandidateType::Application),
                 label: Cell::default(),
             }
         }
-    }
-
-    #[derive(Clone, Copy, glib::Enum)]
-    #[enum_type(name = "CandidateType")]
-    #[repr(u32)]
-    pub enum CandidateType {
-        Source,
-        Sink,
     }
 
     #[glib::object_subclass]
@@ -80,7 +72,7 @@ mod imp {
         fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
             match pspec.name() {
                 "id" => self.id.get().to_value(),
-                "kind" => self.kind.get().to_value(),
+                "kind" => self.kind.get().as_raw().to_value(),
                 "label" => self.label.get().to_value(),
                 _ => unimplemented!(),
             }
@@ -137,6 +129,10 @@ impl CandidateData {
 
 impl Default for CandidateData {
     fn default() -> Self {
-        Self::new()
+        Self::new(
+            0,
+            CandidateType::Application,
+            "".to_string()
+        )
     }
 }

@@ -236,7 +236,7 @@ impl Dropdown {
             .build()
     }
 
-    pub fn update_candidates(&self, c: Vec<Candidate>) {
+    pub fn update_candidates(&self, c: Vec<CandidateData>) {
         let imp = self.imp();
         imp.candidates.replace(c);
         // Create a list of strings

@@ -21,11 +21,21 @@ use adw::{
     prelude::*,
     subclass::prelude::*,
 };
+use glib::property::PropertyGet;
+use crate::ui::main::CandidateData;
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy, glib::Enum)]
+#[enum_type(name = "CandidateType")]
+#[repr(u32)]
 pub enum CandidateType {
     Application,
     Device,
+}
+
+impl Default for CandidateType {
+    fn default() -> Self {
+        CandidateType::Application
+    }
 }
 
 impl CandidateType {
@@ -152,6 +162,6 @@ impl Candidate {
 
 impl From<&CandidateData> for Candidate {
     fn from(data: &CandidateData) -> Self {
-        Candidate::new(data.id, data.kind.as_raw(), data.label.clone())
+        Candidate::new(data.id().unwrap(), data.kind().unwrap().as_raw(), data.label().unwrap())
     }
 }
