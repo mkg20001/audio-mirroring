@@ -151,10 +151,10 @@ glib::wrapper! {
 }
 
 impl Candidate {
-    pub fn new(id: u32, kind: u32, label: String) -> Self {
+    pub fn new(id: u32, kind: CandidateType, label: String) -> Self {
         glib::Object::builder()
             .property("pipewire-id", id)
-            .property("kind", kind)
+            .property("kind", kind.as_raw())
             .property("name", label)
             .build()
     }
@@ -162,6 +162,6 @@ impl Candidate {
 
 impl From<&CandidateData> for Candidate {
     fn from(data: &CandidateData) -> Self {
-        Candidate::new(data.id(), data.kind().as_raw(), data.label())
+        Candidate::new(data.id(), data.kind(), data.label())
     }
 }

@@ -252,29 +252,29 @@ impl Dropdown {
         let factory = SignalListItemFactory::new();
 
         factory.connect_setup(move |_factory, list_item| {
-            /*let candidate = Candidate::new(0, 0, "".into());
-            list_item.set_child(Some(&candidate));*/
+            let candidate = Candidate::new(0, CandidateType::Application, "".into());
+            list_item.set_child(Some(&candidate));
         });
 
         factory.connect_bind(move |_factory, list_item| {
-            let item = list_item
+            /*let item = list_item
                 .item()
                 .and_downcast::<CandidateData>()
                 .expect("Expected CandidateData");
-            list_item.set_child(Some(&Candidate::from(&item)));
+            list_item.set_child(Some(&Candidate::from(&item)));*/
             /*let item = list_item
                 .item()
                 .and_downcast::<Candidate>()
                 .expect("Expected Candidate");
 
             list_item.set_child(Some(&item));*/
-            /*let candidate = list_item.child().unwrap().downcast::<Candidate>().unwrap();
+            let candidate = list_item.child().unwrap().downcast::<Candidate>().unwrap();
             let item = list_item.item().unwrap().downcast::<CandidateData>().unwrap();
 
             // Update candidate with new data
-            candidate.set_property("pipewire-id", &item.id).unwrap();
-            candidate.set_property("kind", &item.kind).unwrap();
-            candidate.set_property("label", &item.label).unwrap();*/
+            candidate.set_property("pipewire-id", &item.id());
+            candidate.set_property("kind", &item.kind());
+            candidate.set_property("label", &item.label());
             /*if let Some(item) = list_item.item().and_downcast::<Candidate>() {
                 list_item.set_child(Some(&item));
             } else {
@@ -283,7 +283,7 @@ impl Dropdown {
             //list_item.child().unwrap().downcast::<Candidate>().unwrap();
         });
 
-        // imp.dropdown.set_model(Some(&model));
+        imp.dropdown.set_model(Some(&model));
         imp.dropdown.set_factory(Some(&factory));
 
 

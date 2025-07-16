@@ -29,7 +29,7 @@ mod imp {
 
     pub struct CandidateData {
         pub id: Cell<u32>,
-        pub kind: Cell<CandidateType>,
+        pub kind: Cell<u32>,
         pub label: Cell<String>,
     }
 
@@ -37,7 +37,7 @@ mod imp {
         fn default() -> Self {
             Self {
                 id: Cell::default(),
-                kind: Cell::new(CandidateType::Application),
+                kind: Cell::new(0),
                 label: Cell::default(),
             }
         }
@@ -72,7 +72,7 @@ mod imp {
         fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
             match pspec.name() {
                 "id" => self.id.get().to_value(),
-                "kind" => self.kind.get().as_raw().to_value(),
+                "kind" => self.kind.get().to_value(),
                 "label" => self.label.take().to_value(),
                 _ => unimplemented!(),
             }
@@ -81,7 +81,7 @@ mod imp {
         fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
             match pspec.name() {
                 "id" => self.id.set(value.get().unwrap()),
-                "kind" => self.kind.set(value.get().unwrap()),
+                "kind" => self.kind.set(value.get::<CandidateType>().unwrap().as_raw()),
                 "label" => {
                     if let Ok(new_label) = value.get() {
                         self.label.set(new_label)
@@ -101,7 +101,7 @@ impl CandidateData {
     pub fn new(id: u32, kind: CandidateType, label: String) -> Self {
         glib::Object::builder()
             .property("id", id)
-            .property("kind", kind.as_raw())
+            .property("kind", kind)
             .property("label", label)
             .build()
     }
