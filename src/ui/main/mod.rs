@@ -7,7 +7,6 @@ pub use port::*;
 mod port_handle;
 pub use port_handle::*;
 mod link;
-pub use link::*;
 mod dropdown;
 pub use dropdown::*;
 mod candidate;

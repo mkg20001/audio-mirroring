@@ -113,10 +113,12 @@ mod imp {
 
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
-                vec![Signal::builder("port-toggled")
-                    // Provide id of output port and input port to signal handler.
-                    .param_types([<u32>::static_type(), <u32>::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("port-toggled")
+                        // Provide id of output port and input port to signal handler.
+                        .param_types([<u32>::static_type(), <u32>::static_type()])
+                        .build(),
+                ]
             });
 
             SIGNALS.as_ref()

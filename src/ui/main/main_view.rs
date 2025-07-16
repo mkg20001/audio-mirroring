@@ -14,23 +14,20 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::ui::main::{CandidateData, Dropdown, Node, Port};
+use crate::NodeType;
+use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use std::borrow::BorrowMut;
 use std::collections::HashSet;
 use std::error::Error;
-use adw::{glib, gtk, prelude::*, subclass::prelude::*};
-use pipewire::spa::utils::Direction;
-use crate::NodeType;
-use crate::ui::main::{Node, Port, Dropdown, CandidateData};
 
 mod imp {
     use super::*;
 
-    use std::{
-        collections::HashSet,
-    };
-    use std::cell::{Cell, OnceCell, RefCell};
-    use glib::{List, Value};
     use crate::NodeType;
+    use glib::{List, Value};
+    use std::cell::{Cell, OnceCell, RefCell};
+    use std::collections::HashSet;
 
     #[derive(glib::Properties, gtk::CompositeTemplate, Default)]
     #[properties(wrapper_type = super::MainView)]
@@ -52,7 +49,6 @@ mod imp {
         #[template_child]
         #[property(type = super::Dropdown, get = |_| self.target_dd.clone())]
         pub target_dd: TemplateChild<Dropdown>,
-
         /*#[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
         #[property(
@@ -118,9 +114,7 @@ mod imp {
     impl WidgetImpl for MainView {}
 
     impl MainView {
-        pub fn add_node(&self, node: Node, node_type: Option<NodeType>) {
-
-        }
+        pub fn add_node(&self, node: Node, node_type: Option<NodeType>) {}
     }
 }
 

@@ -1,56 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0"/>
-  <template class="AudioSharingNode" parent="GtkWidget">
-    <style>
-      <class name="card"></class>
-    </style>>
-    <child>
-      <object class="GtkBox">
-        <property name="orientation">vertical</property>
+    <requires lib="gtk" version="4.0"/>
+    <template class="AudioSharingNode" parent="GtkWidget">
+        <style>
+            <class name="card"></class>
+        </style>
+        >
         <child>
-          <object class="GtkBox">
-            <style>
-              <class name="node-title"></class>
-            </style>
-            <property name="orientation">vertical</property>
-            <property name="spacing">1</property>
-            <child>
-              <object class="GtkLabel" id="node_name">
-                <style>
-                  <class name="heading"></class>
-                </style>
-                <property name="wrap">true</property>
-                <property name="ellipsize">PANGO_ELLIPSIZE_END</property>
-                <property name="lines">2</property>
-                <property name="max-width-chars">20</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkLabel" id="media_name">
-                <style>
-                  <class name="dim-label"></class>
-                  <class name="caption"></class>
-                </style>
-                <property name="visible">false</property>
-                <property name="wrap">true</property>
-                <property name="ellipsize">PANGO_ELLIPSIZE_END</property>
-                <property name="lines">2</property>
-                <property name="max-width-chars">20</property>
-              </object>
-            </child>
-          </object>
+            <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <child>
+                    <object class="GtkBox">
+                        <style>
+                            <class name="node-title"></class>
+                        </style>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">1</property>
+                        <child>
+                            <object class="GtkLabel" id="node_name">
+                                <style>
+                                    <class name="heading"></class>
+                                </style>
+                                <property name="wrap">true</property>
+                                <property name="ellipsize">PANGO_ELLIPSIZE_END</property>
+                                <property name="lines">2</property>
+                                <property name="max-width-chars">20</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkLabel" id="media_name">
+                                <style>
+                                    <class name="dim-label"></class>
+                                    <class name="caption"></class>
+                                </style>
+                                <property name="visible">false</property>
+                                <property name="wrap">true</property>
+                                <property name="ellipsize">PANGO_ELLIPSIZE_END</property>
+                                <property name="lines">2</property>
+                                <property name="max-width-chars">20</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkSeparator" id="separator">
+                        <!-- The node will show the seperator only once ports are added to it -->
+                        <property name="visible">false</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkGrid" id="port_grid"></object>
+                </child>
+            </object>
         </child>
-        <child>
-          <object class="GtkSeparator" id="separator">
-            <!-- The node will show the seperator only once ports are added to it -->
-            <property name="visible">false</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkGrid" id="port_grid"></object>
-        </child>
-      </object>
-    </child>
-  </template>
+    </template>
 </interface>

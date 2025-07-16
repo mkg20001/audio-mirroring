@@ -14,6 +14,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::ui::main::CandidateData;
 use adw::{
     gdk,
     glib::{self, subclass::Signal},
@@ -22,7 +23,6 @@ use adw::{
     subclass::prelude::*,
 };
 use glib::property::PropertyGet;
-use crate::ui::main::CandidateData;
 
 #[derive(Clone, Copy, glib::Enum)]
 #[enum_type(name = "CandidateType")]
@@ -56,11 +56,11 @@ impl CandidateType {
 }
 
 mod imp {
-use super::*;
+    use super::*;
 
-    use std::cell::{Cell, OnceCell};
     use once_cell::sync::Lazy;
     use pipewire::spa::{param::format::MediaType, utils::Direction};
+    use std::cell::{Cell, OnceCell};
 
     /// Graphical representation of a pipewire port.
     #[derive(gtk::CompositeTemplate, glib::Properties)]
@@ -121,8 +121,7 @@ use super::*;
         }
     }
 
-    impl WidgetImpl for Candidate {
-    }
+    impl WidgetImpl for Candidate {}
 
     impl Candidate {
         fn set_kind(&self, candidate: u32) {

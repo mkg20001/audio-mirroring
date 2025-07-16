@@ -15,9 +15,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use adw::{glib, prelude::*, subclass::prelude::*};
-use pipewire::spa::param::format::MediaType;
 
-use super::{CandidateType, Port};
+use super::CandidateType;
 use glib::prelude::*;
 
 mod imp {
@@ -81,12 +80,14 @@ mod imp {
         fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
             match pspec.name() {
                 "id" => self.id.set(value.get().unwrap()),
-                "kind" => self.kind.set(value.get::<CandidateType>().unwrap().as_raw()),
+                "kind" => self
+                    .kind
+                    .set(value.get::<CandidateType>().unwrap().as_raw()),
                 "label" => {
                     if let Ok(new_label) = value.get() {
                         self.label.set(new_label)
                     }
-                },
+                }
                 _ => unimplemented!(),
             }
         }
@@ -133,10 +134,6 @@ impl CandidateData {
 
 impl Default for CandidateData {
     fn default() -> Self {
-        Self::new(
-            0,
-            CandidateType::Application,
-            "".to_string()
-        )
+        Self::new(0, CandidateType::Application, "".to_string())
     }
 }

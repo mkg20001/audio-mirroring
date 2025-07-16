@@ -14,23 +14,22 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use adw::{glib, gtk, prelude::*, subclass::prelude::*};
-use adw::gtk::{DropDown, ListItemFactory, SignalListItemFactory, StringList};
-use adw::gio::ListStore;
-use pipewire::spa::utils::Direction;
+use super::{Candidate, CandidateData};
 use crate::ui::main::candidate::CandidateType;
-use super::{Candidate, CandidateData, Port};
+use adw::gio::ListStore;
+use adw::gtk::SignalListItemFactory;
+use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 
 mod imp {
+    use super::*;
+    use crate::gtk::{Box, Image, Label, ListItemFactory, Orientation};
     use crate::ui::main::dropdown::glib::clone;
-use crate::gtk::{ListItemFactory, Box, Image, Label, Orientation};
-use super::*;
 
+    use crate::ui::main::Candidate;
     use std::{
         cell::{Cell, RefCell},
         collections::HashSet,
     };
-    use crate::ui::main::Candidate;
 
     #[derive(glib::Properties, gtk::CompositeTemplate, Default)]
     #[properties(wrapper_type = super::Dropdown)]
@@ -83,10 +82,11 @@ use super::*;
 
             self.use_mode.hide();
 
-            self.confirm_btn.connect_clicked(clone!(@weak self as imp => move |_| {
-                imp.select_mode.hide();
-                imp.use_mode.show();
-            }));
+            self.confirm_btn
+                .connect_clicked(clone!(@weak self as imp => move |_| {
+                    imp.select_mode.hide();
+                    imp.use_mode.show();
+                }));
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
             let factory = gtk::SignalListItemFactory::new();
@@ -210,7 +210,6 @@ use super::*;
             // self.dropdown.set_factory(Some(&factory));
         }
 
-
         fn dispose(&self) {
             if let Some(child) = self.obj().first_child() {
                 child.unparent();
@@ -220,8 +219,7 @@ use super::*;
 
     impl WidgetImpl for Dropdown {}
 
-    impl Dropdown {
-    }
+    impl Dropdown {}
 }
 
 glib::wrapper! {
@@ -270,7 +268,11 @@ impl Dropdown {
             let candidate = Candidate::from(&item);
             list_item.set_child(Some(&candidate));*/
             let candidate = list_item.child().unwrap().downcast::<Candidate>().unwrap();
-            let item = list_item.item().unwrap().downcast::<CandidateData>().unwrap();
+            let item = list_item
+                .item()
+                .unwrap()
+                .downcast::<CandidateData>()
+                .unwrap();
 
             // Update candidate with new data
             candidate.set_property("pipewire-id", &item.id());

@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0"/>
-  <template class="AudioSharingCandidate" parent="GtkWidget">
-    <property name="hexpand">true</property>
-    <child>
-      <object class="GtkImage">
-        <!-- Use a named icon from the system theme -->
-        <property name="icon-name">object-select</property>
-        <property name="icon-size">button</property>
-      </object>
-    </child>
-    <child>
-      <object class="GtkLabel" id="label">
-        <property name="wrap">true</property>
-        <property name="ellipsize">PANGO_ELLIPSIZE_END</property>
-        <property name="lines">2</property>
-        <property name="max-width-chars">20</property>
-      </object>
-    </child>
-  </template>
+    <requires lib="gtk" version="4.0"/>
+    <template class="AudioSharingCandidate" parent="GtkWidget">
+        <property name="hexpand">true</property>
+        <child>
+            <object class="GtkImage">
+                <!-- Use a named icon from the system theme -->
+                <property name="icon-name">object-select</property>
+                <property name="icon-size">button</property>
+            </object>
+        </child>
+        <child>
+            <object class="GtkLabel" id="label">
+                <property name="wrap">true</property>
+                <property name="ellipsize">PANGO_ELLIPSIZE_END</property>
+                <property name="lines">2</property>
+                <property name="max-width-chars">20</property>
+            </object>
+        </child>
+    </template>
 </interface>
 

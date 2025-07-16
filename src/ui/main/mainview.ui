@@ -1,50 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0"/>
-  <template class="AudioSharingMainView" parent="GtkWidget">
-    <style>
-      <class name="card"></class>
-    </style>
-    <child>
-      <object class="GtkBox">
-        <property name="orientation">vertical</property>
+    <requires lib="gtk" version="4.0"/>
+    <template class="AudioSharingMainView" parent="GtkWidget">
+        <style>
+            <class name="card"></class>
+        </style>
         <child>
-          <object class="GtkLabel" id="source_device_label">
-            <property name="single-line-mode">True</property>
-            <property name="hexpand">yes</property>
-            <property name="halign">center</property>
-            <property name="label" translatable="yes">Source Device</property>
-            <style>
-              <class name="big"/>
-            </style>
-          </object>
+            <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <child>
+                    <object class="GtkLabel" id="source_device_label">
+                        <property name="single-line-mode">True</property>
+                        <property name="hexpand">yes</property>
+                        <property name="halign">center</property>
+                        <property name="label" translatable="yes">Source Device</property>
+                        <style>
+                            <class name="big"/>
+                        </style>
+                    </object>
+                </child>
+                <child>
+                    <object class="AudioSharingDropdown" id="source_dd">
+                        <property name="hexpand">true</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkSeparator">
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkLabel" id="mirror_devices_label">
+                        <property name="single-line-mode">True</property>
+                        <property name="hexpand">yes</property>
+                        <property name="halign">center</property>
+                        <property name="label" translatable="yes">Mirror Devices</property>
+                        <style>
+                            <class name="big"/>
+                        </style>
+                    </object>
+                </child>
+                <child>
+                    <object class="AudioSharingDropdown" id="target_dd">
+                        <property name="hexpand">true</property>
+                    </object>
+                </child>
+            </object>
         </child>
-        <child>
-          <object class="AudioSharingDropdown" id="source_dd">
-            <property name="hexpand">true</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkSeparator">
-          </object>
-        </child>
-        <child>
-          <object class="GtkLabel" id="mirror_devices_label">
-            <property name="single-line-mode">True</property>
-            <property name="hexpand">yes</property>
-            <property name="halign">center</property>
-            <property name="label" translatable="yes">Mirror Devices</property>
-            <style>
-              <class name="big"/>
-            </style>
-          </object>
-        </child>
-        <child>
-          <object class="AudioSharingDropdown" id="target_dd">
-            <property name="hexpand">true</property>
-          </object>
-        </child>
-      </object>
-    </child>
-  </template>
+    </template>
 </interface>
