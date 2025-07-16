@@ -12,3 +12,5 @@ mod dropdown;
 pub use dropdown::*;
 mod candidate;
 pub use candidate::*;
+mod candidate_data;
+pub use candidate_data::*;

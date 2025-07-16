@@ -19,9 +19,8 @@ use std::collections::HashSet;
 use std::error::Error;
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
 use pipewire::spa::utils::Direction;
-use crate::graph_manager::Candidate;
 use crate::NodeType;
-use crate::ui::main::{Node, Port, Dropdown};
+use crate::ui::main::{Node, Port, Dropdown, CandidateData};
 
 mod imp {
     use super::*;
@@ -135,7 +134,7 @@ impl MainView {
         glib::Object::new()
     }
 
-    pub fn update_candidates(&self, source: Vec<Candidate>, target: Vec<Candidate>) {
+    pub fn update_candidates(&self, source: Vec<CandidateData>, target: Vec<CandidateData>) {
         let imp = self.imp();
         imp.source_dd.update_candidates(source);
         imp.target_dd.update_candidates(target);

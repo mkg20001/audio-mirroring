@@ -21,7 +21,6 @@ use adw::{
     prelude::*,
     subclass::prelude::*,
 };
-use crate::graph_manager::CandidateData;
 
 #[derive(Copy, Clone)]
 pub enum CandidateType {

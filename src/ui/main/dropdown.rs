@@ -15,19 +15,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
-use adw::gtk::{ListStore, StringList};
+use adw::gtk::{DropDown, ListItemFactory, ListStore, SignalListItemFactory, StringList};
 use pipewire::spa::utils::Direction;
-use crate::graph_manager::{Candidate, CandidateType};
-use super::Port;
+use crate::ui::main::candidate::CandidateType;
+use super::{Candidate, CandidateData, Port};
 
 mod imp {
-    use crate::gtk::{ListItemFactory, Box, Image, Label, Orientation};
+    use crate::ui::main::dropdown::glib::clone;
+use crate::gtk::{ListItemFactory, Box, Image, Label, Orientation};
 use super::*;
 
     use std::{
         cell::{Cell, RefCell},
         collections::HashSet,
     };
+    use crate::ui::main::Candidate;
 
     #[derive(glib::Properties, gtk::CompositeTemplate, Default)]
     #[properties(wrapper_type = super::Dropdown)]
@@ -36,7 +38,7 @@ use super::*;
         #[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
 
-        pub(super) candidates: RefCell<Vec<Candidate>>,
+        pub(super) candidates: RefCell<Vec<CandidateData>>,
 
         #[template_child]
         pub(super) dropdown: TemplateChild<gtk::DropDown>,
@@ -80,10 +82,10 @@ use super::*;
 
             self.use_mode.hide();
 
-            /*self.confirm_btn.connect_clicked(move |_| {
-                select_mode.hide();
-                use_mode.show();
-            });*/
+            self.confirm_btn.connect_clicked(clone!(@weak self as imp => move |_| {
+                imp.select_mode.hide();
+                imp.use_mode.show();
+            }));
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
             let factory = gtk::SignalListItemFactory::new();
@@ -240,7 +242,52 @@ impl Dropdown {
         // Create a list of strings
         let candidates_ref = imp.candidates.borrow();
 
-        let labels: Vec<String> = candidates_ref.iter()
+        let model = ListStore::new(&[CandidateData::static_type()]);
+
+        candidates_ref.iter().for_each(|f| {
+            let iter = model.append();
+            model.set(&iter, &[(0, f)]);
+        });
+
+        let factory = SignalListItemFactory::new();
+
+        factory.connect_setup(move |_factory, list_item| {
+            /*let candidate = Candidate::new(0, 0, "".into());
+            list_item.set_child(Some(&candidate));*/
+        });
+
+        factory.connect_bind(move |_factory, list_item| {
+            let item = list_item
+                .item()
+                .and_downcast::<CandidateData>()
+                .expect("Expected CandidateData");
+            list_item.set_child(Some(&Candidate::from(&item)));
+            /*let item = list_item
+                .item()
+                .and_downcast::<Candidate>()
+                .expect("Expected Candidate");
+
+            list_item.set_child(Some(&item));*/
+            /*let candidate = list_item.child().unwrap().downcast::<Candidate>().unwrap();
+            let item = list_item.item().unwrap().downcast::<CandidateData>().unwrap();
+
+            // Update candidate with new data
+            candidate.set_property("pipewire-id", &item.id).unwrap();
+            candidate.set_property("kind", &item.kind).unwrap();
+            candidate.set_property("label", &item.label).unwrap();*/
+            /*if let Some(item) = list_item.item().and_downcast::<Candidate>() {
+                list_item.set_child(Some(&item));
+            } else {
+                log::warn!("did not work dropdown");
+            }*/
+            //list_item.child().unwrap().downcast::<Candidate>().unwrap();
+        });
+
+        // imp.dropdown.set_model(Some(&model));
+        imp.dropdown.set_factory(Some(&factory));
+
+
+        /*let labels: Vec<String> = candidates_ref.iter()
             .map(|c| c.label.clone() + match c.kind { // TODO: use icons - application=window, device=speaker
                 CandidateType::Device => " (device)",
                 CandidateType::Application => " (application)",
@@ -251,6 +298,6 @@ impl Dropdown {
             .map(|s| s.as_str())
             .collect::<Vec<&str>>());
 
-        imp.dropdown.set_model(Some(&string_list));
+        imp.dropdown.set_model(Some(&string_list));*/
     }
 }

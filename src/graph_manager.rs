@@ -20,18 +20,11 @@ use pipewire::channel::Sender as PwSender;
 
 use crate::{ui::main, GtkMessage, PipewireMessage};
 use crate::types::{};
-use crate::ui::main::MainView;
+use crate::ui::main::{Candidate, CandidateType, MainView};
 
-pub enum CandidateType {
-    Application,
-    Device,
-}
-
-pub struct Candidate {
-    pub id: u32,
-    pub kind: CandidateType,
-    pub label: String,
-}
+use glib::subclass::prelude::*;
+use glib::{glib_object_wrapper, Object, ParamSpec, ParamSpecUInt, ParamSpecString, Value};
+use std::cell::{Cell, OnceCell, RefCell};
 
 mod imp {
     use std::option::Option;
@@ -41,6 +34,7 @@ mod imp {
     use log::warn;
     use crate::{types, MediaType, NodeType};
     use crate::types::Node;
+    use crate::ui::main::CandidateData;
 
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::GraphManager)]
@@ -125,16 +119,16 @@ mod imp {
             self.obj().main().update_candidates(self.get_candidates_source(), self.get_candidates_target());
         }
 
-        fn get_candidates_source(&self) -> Vec<Candidate> {
+        fn get_candidates_source(&self) -> Vec<CandidateData> {
             self.nodes.borrow().iter().filter_map(|(_, node)| {
                 if node.has_port_by_label("output_FL") && node.has_port_by_label("output_FR") {
-                    Some(Candidate {
+                    Some(CandidateData {
                         id: node.get_id(),
                         kind: CandidateType::Application,
                         label: node.get_name(),
                     })
                 } else if node.has_port_by_label("monitor_FL") && node.has_port_by_label("monitor_FR") {
-                    Some(Candidate {
+                    Some(CandidateData {
                         id: node.get_id(),
                         kind: CandidateType::Device,
                         label: node.get_name(),
@@ -145,10 +139,10 @@ mod imp {
             }).collect()
         }
 
-        fn get_candidates_target(&self) -> Vec<Candidate> {
+        fn get_candidates_target(&self) -> Vec<CandidateData> {
             self.nodes.borrow().iter().filter_map(|(_, node)| {
                 if node.has_port_by_label("playback_FR") && node.has_port_by_label("playback_FL") {
-                    Some(Candidate {
+                    Some(CandidateData {
                         id: node.get_id(),
                         kind: CandidateType::Device,
                         label: node.get_name(),
