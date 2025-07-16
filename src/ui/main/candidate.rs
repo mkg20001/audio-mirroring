@@ -59,7 +59,6 @@ mod imp {
 use super::*;
 
     use std::cell::{Cell, OnceCell};
-
     use once_cell::sync::Lazy;
     use pipewire::spa::{param::format::MediaType, utils::Direction};
 
@@ -68,11 +67,11 @@ use super::*;
     #[properties(wrapper_type = super::Candidate)]
     #[template(file = "candidate.ui")]
     pub struct Candidate {
-        #[property(get, set, construct_only)]
-        pub(super) pipewire_id: OnceCell<u32>,
+        #[property(name = "pipewire-id", get, set)]
+        pub(super) pipewire_id: Cell<u32>,
         #[property(
             type = u32,
-            get = |this: &Self| this.kind.get().as_raw(),
+            get = |_| self.kind.get().as_raw(),
             set = Self::set_kind
         )]
         pub(super) kind: Cell<CandidateType>,
@@ -91,7 +90,7 @@ use super::*;
     impl Default for Candidate {
         fn default() -> Self {
             Self {
-                pipewire_id: OnceCell::default(),
+                pipewire_id: Cell::default(),
                 kind: Cell::new(CandidateType::Application),
                 label: TemplateChild::default(),
             }
@@ -127,9 +126,7 @@ use super::*;
 
     impl Candidate {
         fn set_kind(&self, candidate: u32) {
-            let candidate_type = CandidateType::from_raw(candidate);
-
-            self.kind.set(candidate_type);
+            self.kind.set(CandidateType::from_raw(candidate));
 
             /*for css_class in ["application", "device"] {
                 self.handle.remove_css_class(css_class)
