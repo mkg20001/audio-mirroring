@@ -512,9 +512,12 @@ mod imp {
         }
 
         fn update_status(&self) {
+            let has_source = self.selected_source_id.get().is_some();
             let targets = self.active_targets.borrow();
-            let device_count = targets.len() as u32;
-            self.obj().main().set_status(device_count > 0, device_count, None);
+            let target_count = targets.len() as u32;
+            // Only show as mirroring if we have both a source and at least one target
+            let is_mirroring = has_source && target_count > 0;
+            self.obj().main().set_status(is_mirroring, target_count, None);
         }
 
         fn update_links(&self) {
@@ -546,7 +549,6 @@ mod imp {
             };
 
             let targets = self.active_targets.borrow();
-            let mut device_count = 0u32;
 
             for target_id in targets.iter() {
                 let Some(target_node) = nodes.get(target_id) else {
@@ -577,11 +579,10 @@ mod imp {
                 }
                 drop(active_links);
 
-                device_count += 1;
             }
 
             // Update status
-            self.obj().main().set_status(device_count > 0, device_count, None);
+            self.update_status();
         }
 
         fn volume_changed(&self, node_id: u32, volume: f32) {
