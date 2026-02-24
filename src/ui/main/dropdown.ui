@@ -2,14 +2,12 @@
 <interface>
     <requires lib="gtk" version="4.0"/>
     <template class="AudioSharingDropdown" parent="GtkWidget">
-        <!--<style>
-            <class name="card"></class>
-        </style>!-->
         <child>
             <object class="GtkBox" id="select_mode">
                 <property name="orientation">horizontal</property>
                 <property name="hexpand">yes</property>
                 <property name="halign">center</property>
+                <property name="spacing">8</property>
                 <child>
                     <object class="GtkDropDown" id="dropdown">
                         <property name="width-request">256</property>
@@ -23,7 +21,6 @@
                         </style>
                         <child>
                             <object class="GtkImage">
-                                <!-- Use a named icon from the system theme -->
                                 <property name="icon-name">object-select</property>
                                 <property name="icon-size">button</property>
                             </object>
@@ -36,7 +33,7 @@
                         <property name="visible">false</property>
                         <style>
                             <class name="circular"/>
-                            <class name="flat"/>
+                            <class name="destructive-action"/>
                         </style>
                         <child>
                             <object class="GtkImage">
@@ -52,17 +49,26 @@
                 <property name="orientation">horizontal</property>
                 <property name="hexpand">yes</property>
                 <property name="halign">center</property>
-                <property name="spacing">8</property>
+                <property name="spacing">12</property>
                 <child>
-                    <object class="GtkImage" id="selected_icon">
-                        <property name="icon-name">audio-card-symbolic</property>
-                    </object>
-                </child>
-                <child>
-                    <object class="GtkLabel" id="selected_label">
-                        <property name="label">No selection</property>
-                        <property name="ellipsize">end</property>
-                        <property name="max-width-chars">20</property>
+                    <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">8</property>
+                        <property name="width-request">200</property>
+                        <child>
+                            <object class="GtkImage" id="selected_icon">
+                                <property name="icon-name">audio-card-symbolic</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkLabel" id="selected_label">
+                                <property name="label">No selection</property>
+                                <property name="ellipsize">end</property>
+                                <property name="max-width-chars">20</property>
+                                <property name="hexpand">true</property>
+                                <property name="xalign">0</property>
+                            </object>
+                        </child>
                     </object>
                 </child>
                 <child>
@@ -82,8 +88,7 @@
                 <child>
                     <object class="GtkScale" id="volume_slider">
                         <property name="orientation">horizontal</property>
-                        <property name="width-request">120</property>
-                        <property name="hexpand">true</property>
+                        <property name="width-request">150</property>
                         <property name="adjustment">
                             <object class="GtkAdjustment">
                                 <property name="lower">0</property>
