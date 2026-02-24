@@ -233,9 +233,13 @@ mod imp {
             let mut nodes = self.nodes.borrow_mut();
             let port2node = self.port2node.borrow();
             if let Some(node_id) = port2node.get(&id) {
-                let node = nodes.get_mut(node_id).expect("");
-                if let Some(port) = node.get_port_mut(id) {
-                    port.set_media_type(media_type);
+                if let Some(node) = nodes.get_mut(node_id) {
+                    if let Some(port) = node.get_port_mut(id) {
+                        port.set_media_type(media_type);
+                    }
+                } else {
+                    log::warn!("Node (id: {node_id}) for port (id: {id}) not found in graph manager");
+                    return;
                 }
             } else {
                 log::warn!("Node for port (id: {id}) not found in graph manager");
