@@ -156,8 +156,8 @@ pub(super) fn thread_main(
         let receiver = pw_receiver.attach(mainloop.loop_(), {
             clone!(@strong mainloop, @weak core, @weak registry, @strong state, @strong loop_state, @strong proxies, @strong gtk_sender => move |msg| match msg {
                 GtkMessage::ToggleLink { port_from, port_to } => toggle_link(port_from, port_to, &core, &registry, &state),
-                GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume),
-                GtkMessage::GetVolume { node_id } => get_volume(node_id, &gtk_sender),
+                GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies),
+                GtkMessage::GetVolume { node_id } => get_volume(node_id, &proxies),
                 GtkMessage::Terminate | GtkMessage::Connect(_) => {
                     loop_state.borrow_mut().handle_message(msg);
                     mainloop.quit();
@@ -279,12 +279,21 @@ fn handle_node(
         .expect("Failed to send message");
 
     let proxy: Node = registry.bind(node).expect("Failed to bind to node proxy");
+    let node_id = node.id;
     let listener = proxy
         .add_listener_local()
         .info(clone!(@strong sender, @strong proxies => move |info| {
             handle_node_info(info, &sender, &proxies);
         }))
+        .param(clone!(@strong sender => move |_seq, param_type, _index, _next, param| {
+            if param_type == ParamType::Props || param_type == ParamType::Route {
+                handle_node_props(node_id, param_type, param, &sender);
+            }
+        }))
         .register();
+
+    // Subscribe to Props and Route params for volume changes
+    proxy.subscribe_params(&[ParamType::Props, ParamType::Route]);
 
     proxies.borrow_mut().insert(
         node.id,
@@ -548,14 +557,144 @@ fn toggle_link(
     }
 }
 
-fn set_volume(node_id: u32, volume: f32) {
+fn handle_node_props(
+    node_id: u32,
+    param_type: ParamType,
+    param: Option<&pipewire::spa::pod::Pod>,
+    sender: &async_channel::Sender<PipewireMessage>,
+) {
+    use pipewire::spa::pod::deserialize::PodDeserializer;
+    use pipewire::spa::pod::{Value, ValueArray};
+
+    let Some(param) = param else {
+        return;
+    };
+
+    // Try to deserialize the pod
+    let Ok((_, value)) = PodDeserializer::deserialize_any_from(param.as_bytes()) else {
+        return;
+    };
+
+    const SPA_PROP_VOLUME: u32 = 3;
+    const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
+    const SPA_PARAM_ROUTE_props: u32 = 5;
+
+    // Handle both Props and Route params
+    if let Value::Object(obj) = value {
+        let properties = if param_type == ParamType::Route {
+            // For Route, look inside the props sub-object
+            obj.properties.iter()
+                .find(|p| p.key == SPA_PARAM_ROUTE_props)
+                .and_then(|p| {
+                    if let Value::Object(props_obj) = &p.value {
+                        Some(props_obj.properties.clone())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
+        } else {
+            obj.properties
+        };
+
+        for prop in properties {
+            // Try channelVolumes first
+            if prop.key == SPA_PROP_CHANNEL_VOLUMES {
+                if let Value::ValueArray(ValueArray::Float(ref volumes)) = prop.value {
+                    if let Some(&volume) = volumes.first() {
+                        // Convert from cubic to linear for display
+                        let linear_volume = volume.cbrt();
+                        info!("Volume changed for node {} (channelVolumes): {} (linear: {})", node_id, volume, linear_volume);
+                        let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
+                            node_id,
+                            volume: linear_volume,
+                        });
+                        return;
+                    }
+                }
+            }
+            // Fallback to single volume
+            if prop.key == SPA_PROP_VOLUME {
+                if let Value::Float(volume) = prop.value {
+                    let linear_volume = volume.cbrt();
+                    info!("Volume changed for node {} (volume): {} (linear: {})", node_id, volume, linear_volume);
+                    let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
+                        node_id,
+                        volume: linear_volume,
+                    });
+                    return;
+                }
+            }
+        }
+    }
+}
+
+fn set_volume(node_id: u32, volume: f32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+    use pipewire::spa::pod::serialize::PodSerializer;
+    use pipewire::spa::pod::{Object, Property, PropertyFlags, Value, ValueArray};
+    use std::io::Cursor;
+
     // Clamp volume between 0.0 and 1.0
     let volume = volume.clamp(0.0, 1.0);
 
-    info!("Setting volume for node {} to {}", node_id, volume);
+    // Convert linear volume to cubic (perceptual) scale
+    let cubic_volume = volume * volume * volume;
 
-    // Use wpctl to set volume - this is the most reliable way for device nodes
-    // wpctl expects volume as a percentage (0.0 to 1.0) or percentage string
+    info!("Setting volume for node {} to {} (cubic: {})", node_id, volume, cubic_volume);
+
+    // Try native PipeWire first for stream nodes
+    let native_success = {
+        let proxies = proxies.borrow();
+        if let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) {
+            // SPA constants
+            const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
+            const SPA_PARAM_PROPS: u32 = 2;
+            const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
+
+            let pod_vec: Vec<u8> = Vec::new();
+            let cursor = Cursor::new(pod_vec);
+
+            let result = PodSerializer::serialize(
+                cursor,
+                &Value::Object(Object {
+                    type_: SPA_TYPE_OBJECT_PROPS,
+                    id: SPA_PARAM_PROPS,
+                    properties: vec![
+                        Property {
+                            key: SPA_PROP_CHANNEL_VOLUMES,
+                            flags: PropertyFlags::empty(),
+                            value: Value::ValueArray(ValueArray::Float(
+                                vec![cubic_volume, cubic_volume],
+                            )),
+                        },
+                    ],
+                }),
+            );
+
+            if let Ok((cursor, _size)) = result {
+                let pod_data = cursor.into_inner();
+                let pod = unsafe {
+                    &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod)
+                };
+                proxy.set_param(ParamType::Props, 0, pod);
+                info!("Volume set for node {} via native Props", node_id);
+                true
+            } else {
+                false
+            }
+        } else {
+            warn!("Node {} not found for volume control", node_id);
+            false
+        }
+    };
+
+    // Always also try wpctl for device nodes (it handles device routing properly)
+    if native_success {
+        set_volume_wpctl(node_id, volume);
+    }
+}
+
+fn set_volume_wpctl(node_id: u32, volume: f32) {
     let volume_str = format!("{:.2}", volume);
 
     std::thread::spawn(move || {
@@ -565,50 +704,30 @@ fn set_volume(node_id: u32, volume: f32) {
         {
             Ok(output) => {
                 if output.status.success() {
-                    info!("Volume set successfully for node {} via wpctl", node_id);
+                    info!("Volume set for node {} via wpctl", node_id);
                 } else {
                     let stderr = String::from_utf8_lossy(&output.stderr);
-                    warn!("wpctl failed for node {}: {}", node_id, stderr);
+                    debug!("wpctl set-volume for node {} (may be expected): {}", node_id, stderr);
                 }
             }
             Err(e) => {
-                warn!("Failed to run wpctl for node {}: {}", node_id, e);
+                warn!("Failed to run wpctl: {}", e);
             }
         }
     });
 }
 
-fn get_volume(node_id: u32, sender: &async_channel::Sender<PipewireMessage>) {
-    let sender = sender.clone();
+fn get_volume(node_id: u32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+    let proxies = proxies.borrow();
+    let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) else {
+        warn!("Node {} not found for get volume", node_id);
+        return;
+    };
 
-    std::thread::spawn(move || {
-        match std::process::Command::new("wpctl")
-            .args(["get-volume", &node_id.to_string()])
-            .output()
-        {
-            Ok(output) => {
-                if output.status.success() {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    // Parse output like "Volume: 0.50" or "Volume: 0.50 [MUTED]"
-                    if let Some(vol_str) = stdout.split_whitespace().nth(1) {
-                        if let Ok(volume) = vol_str.parse::<f32>() {
-                            info!("Got volume for node {}: {}", node_id, volume);
-                            let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
-                                node_id,
-                                volume,
-                            });
-                        }
-                    }
-                } else {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    warn!("wpctl get-volume failed for node {}: {}", node_id, stderr);
-                }
-            }
-            Err(e) => {
-                warn!("Failed to run wpctl get-volume for node {}: {}", node_id, e);
-            }
-        }
-    });
+    // Request both Props and Route params - the response will come via the param callback
+    proxy.enum_params(0, Some(ParamType::Props), 0, u32::MAX);
+    proxy.enum_params(0, Some(ParamType::Route), 0, u32::MAX);
+    info!("Requested volume for node {}", node_id);
 }
 
 fn get_link_media_type(link_info: &LinkInfoRef) -> MediaType {
