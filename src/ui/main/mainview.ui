@@ -62,6 +62,7 @@
                     <object class="GtkBox" id="targets_container">
                         <property name="orientation">vertical</property>
                         <property name="spacing">4</property>
+                        <property name="vexpand">true</property>
                         <child>
                             <object class="AudioSharingDropdown" id="target_dd">
                                 <property name="hexpand">true</property>
@@ -71,6 +72,7 @@
                 </child>
                 <child>
                     <object class="GtkSeparator">
+                        <property name="valign">end</property>
                     </object>
                 </child>
                 <child>
