@@ -156,6 +156,7 @@ pub(super) fn thread_main(
         let receiver = pw_receiver.attach(mainloop.loop_(), {
             clone!(@strong mainloop, @weak core, @weak registry, @strong state, @strong loop_state, @strong proxies, @strong gtk_sender => move |msg| match msg {
                 GtkMessage::ToggleLink { port_from, port_to } => toggle_link(port_from, port_to, &core, &registry, &state),
+                GtkMessage::RemoveLink { port_from, port_to } => remove_link(port_from, port_to, &registry, &state),
                 GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies),
                 GtkMessage::GetVolume { node_id } => get_volume(node_id, &proxies),
                 GtkMessage::Terminate | GtkMessage::Connect(_) => {
@@ -554,6 +555,25 @@ fn toggle_link(
         ) {
             warn!("Failed to create link: {}", e);
         }
+    }
+}
+
+/// Remove a link between the two specified ports (only if it exists).
+fn remove_link(
+    port_from: u32,
+    port_to: u32,
+    registry: &Rc<Registry>,
+    state: &Rc<RefCell<State>>,
+) {
+    let state = state.borrow_mut();
+    if let Some(id) = state.get_link_id(port_from, port_to) {
+        info!("Requesting removal of link with id {}", id);
+        registry.destroy_global(id);
+    } else {
+        info!(
+            "Link from port {} to port {} does not exist, skipping removal",
+            port_from, port_to
+        );
     }
 }
 

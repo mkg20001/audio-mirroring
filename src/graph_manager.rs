@@ -384,6 +384,14 @@ mod imp {
                 .expect("Failed to send message");
         }
 
+        // Remove a link between the two specified ports (only if it exists).
+        fn remove_link_from_pw(&self, port_from: u32, port_to: u32) {
+            let sender = self.pw_sender.get().expect("pw_sender shoud be set");
+            sender
+                .send(crate::GtkMessage::RemoveLink { port_from, port_to })
+                .expect("Failed to send message");
+        }
+
         /// Remove the link with the specified id from the view.
         fn remove_link(&self, id: u32) {
             /*log::info!("Removing link from graph: id {}", id);
@@ -446,9 +454,9 @@ mod imp {
                     }
                 }
 
-                // Toggle off the links
+                // Remove the links
                 for (port_from, port_to) in &links_to_remove {
-                    self.toggle_link(*port_from, *port_to);
+                    self.remove_link_from_pw(*port_from, *port_to);
                 }
 
                 // Remove from active links
@@ -469,7 +477,7 @@ mod imp {
             let links = self.active_links.borrow().clone();
             let link_count = links.len();
             for (port_from, port_to) in links {
-                self.toggle_link(port_from, port_to);
+                self.remove_link_from_pw(port_from, port_to);
             }
             self.active_links.borrow_mut().clear();
 
@@ -487,7 +495,7 @@ mod imp {
             // Remove all active links
             let links = self.active_links.borrow().clone();
             for (port_from, port_to) in links {
-                self.toggle_link(port_from, port_to);
+                self.remove_link_from_pw(port_from, port_to);
             }
             self.active_links.borrow_mut().clear();
             self.active_targets.borrow_mut().clear();
