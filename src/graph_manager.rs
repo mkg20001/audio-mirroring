@@ -56,6 +56,8 @@ mod imp {
         pub active_targets: RefCell<Vec<u32>>,
         // Active links (port_from, port_to) that we created
         pub active_links: RefCell<Vec<(u32, u32)>>,
+        // Mapping from link ID to (port_from, port_to) for links we created
+        pub link_id_to_ports: RefCell<HashMap<u32, (u32, u32)>>,
     }
 
     #[glib::object_subclass]
@@ -299,43 +301,17 @@ mod imp {
             id: u32,
             output_port_id: u32,
             input_port_id: u32,
-            active: bool,
-            media_type: MediaType,
+            _active: bool,
+            _media_type: MediaType,
         ) {
-            /*log::info!("Adding link to graph: id {}", id);
-
-            let mut items = self.items.borrow_mut();
-
-            let Some(output_port) = items.get(&output_port_id) else {
-                log::warn!("Output port (id: {output_port_id}) for link (id: {id}) not found in graph manager");
-                return;
-            };
-            let Ok(output_port) = output_port.clone().dynamic_cast::<graph::Port>() else {
-                log::warn!("Graph Manager item under port id {output_port_id} is not a port");
-                return;
-            };
-            let Some(input_port) = items.get(&input_port_id) else {
-                log::warn!("Output port (id: {input_port_id}) for link (id: {id}) not found in graph manager");
-                return;
-            };
-            let Ok(input_port) = input_port.clone().dynamic_cast::<graph::Port>() else {
-                log::warn!("Graph Manager item under port id {input_port_id} is not a port");
-                return;
-            };
-
-            let link = graph::Link::new();
-            link.set_output_port(Some(&output_port));
-            link.set_input_port(Some(&input_port));
-            link.set_active(active);
-            link.set_media_type(media_type);
-
-            items.insert(id, link.clone().upcast());
-
-            // Update graph to contain the new link.
-            self.graph
-                .get()
-                .expect("graph should be set")
-                .add_link(link);*/
+            // Check if this link is one we created (in our active_links)
+            let ports = (output_port_id, input_port_id);
+            let active_links = self.active_links.borrow();
+            if active_links.contains(&ports) {
+                // Track this link ID so we can detect if it gets removed
+                self.link_id_to_ports.borrow_mut().insert(id, ports);
+                log::info!("Tracking our link: id {} ({} -> {})", id, output_port_id, input_port_id);
+            }
         }
 
         fn link_state_changed(&self, id: u32, active: bool) {
@@ -401,19 +377,23 @@ mod imp {
         }
 
         /// Remove the link with the specified id from the view.
+        /// If this was one of our links, re-create it.
         fn remove_link(&self, id: u32) {
-            /*log::info!("Removing link from graph: id {}", id);
-
-            let Some(link) = self.items.borrow_mut().remove(&id) else {
-                log::warn!("Unknown Link (id={id}) removed from graph");
-                return;
-            };
-            let Ok(link) = link.dynamic_cast::<main::Link>() else {
-                log::warn!("Graph Manager item under link id {id} is not a link");
-                return;
-            };*/
-
-            // self.obj().main().remove_link(&link);
+            // Check if this was one of our links
+            let ports = self.link_id_to_ports.borrow_mut().remove(&id);
+            if let Some((port_from, port_to)) = ports {
+                // Check if this link is still supposed to be active
+                let active_links = self.active_links.borrow();
+                if active_links.contains(&(port_from, port_to)) {
+                    drop(active_links);
+                    log::warn!(
+                        "Link {} ({} -> {}) was removed externally, re-creating it",
+                        id, port_from, port_to
+                    );
+                    // Re-create the link
+                    self.create_link_in_pw(port_from, port_to);
+                }
+            }
         }
 
         fn clear(&self) {
@@ -462,13 +442,14 @@ mod imp {
                     }
                 }
 
-                // Remove the links
+                // Remove from active links FIRST (so remove_link won't re-create them)
+                self.active_links.borrow_mut().retain(|link| !links_to_remove.contains(link));
+
+                // Remove the links from PipeWire
                 for (port_from, port_to) in &links_to_remove {
                     self.remove_link_from_pw(*port_from, *port_to);
                 }
 
-                // Remove from active links
-                self.active_links.borrow_mut().retain(|link| !links_to_remove.contains(link));
                 log::info!("Target removed: node {}, removed {} links", id, links_to_remove.len());
             }
             drop(nodes);
@@ -484,10 +465,15 @@ mod imp {
             // Remove all active links
             let links = self.active_links.borrow().clone();
             let link_count = links.len();
+
+            // Clear active links FIRST (so remove_link won't re-create them)
+            self.active_links.borrow_mut().clear();
+            self.link_id_to_ports.borrow_mut().clear();
+
+            // Then remove from PipeWire
             for (port_from, port_to) in links {
                 self.remove_link_from_pw(port_from, port_to);
             }
-            self.active_links.borrow_mut().clear();
 
             // Don't clear active_targets - the UI still shows them as selected
             // They will be re-linked when a new source is confirmed
@@ -502,13 +488,18 @@ mod imp {
             log::info!("Cleaning up - removing all links");
             // Remove all active links
             let links = self.active_links.borrow().clone();
-            for (port_from, port_to) in links {
-                self.remove_link_from_pw(port_from, port_to);
-            }
+
+            // Clear state FIRST (so remove_link won't re-create them)
             self.active_links.borrow_mut().clear();
+            self.link_id_to_ports.borrow_mut().clear();
             self.active_targets.borrow_mut().clear();
             self.selected_source_id.set(None);
             self.selected_source_kind.set(None);
+
+            // Then remove from PipeWire
+            for (port_from, port_to) in links {
+                self.remove_link_from_pw(port_from, port_to);
+            }
         }
 
         fn update_status(&self) {
