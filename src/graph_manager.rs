@@ -473,12 +473,12 @@ mod imp {
             }
             self.active_links.borrow_mut().clear();
 
-            // Also clear all targets since we're stopping mirroring
-            self.active_targets.borrow_mut().clear();
+            // Don't clear active_targets - the UI still shows them as selected
+            // They will be re-linked when a new source is confirmed
 
             self.selected_source_id.set(None);
             self.selected_source_kind.set(None);
-            log::info!("Source cleared, removed {} links, cleared all targets", link_count);
+            log::info!("Source cleared, removed {} links", link_count);
             self.update_status();
         }
 
