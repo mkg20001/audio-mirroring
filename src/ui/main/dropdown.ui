@@ -12,6 +12,7 @@
                 <property name="halign">center</property>
                 <child>
                     <object class="GtkDropDown" id="dropdown">
+                        <property name="width-request">256</property>
                     </object>
                 </child>
                 <child>
