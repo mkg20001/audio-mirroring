@@ -117,9 +117,14 @@ mod imp {
     impl ObjectImpl for MainView {
         fn signals() -> &'static [Signal] {
             static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
-                vec![Signal::builder("target-dropdown-added")
-                    .param_types([Dropdown::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("target-dropdown-added")
+                        .param_types([Dropdown::static_type()])
+                        .build(),
+                    Signal::builder("target-removed")
+                        .param_types([u32::static_type()])
+                        .build(),
+                ]
             });
             SIGNALS.as_ref()
         }
@@ -179,10 +184,19 @@ impl MainView {
         let imp = self.imp();
         let dropdown = Dropdown::new();
         dropdown.set_hexpand(true);
+        dropdown.set_removable(true);
 
         // Populate with current candidates
         let candidates = imp.target_candidates.borrow().clone();
         dropdown.update_candidates(candidates);
+
+        // Handle remove request
+        let container = imp.targets_container.clone();
+        let main_view = self.clone();
+        dropdown.connect_remove_requested(move |dd, target_id| {
+            container.remove(dd);
+            main_view.emit_by_name::<()>("target-removed", &[&target_id]);
+        });
 
         imp.targets_container.append(&dropdown);
 
@@ -199,6 +213,19 @@ impl MainView {
             false,
             glib::closure_local!(move |main_view: &MainView, dropdown: &Dropdown| {
                 f(main_view, dropdown);
+            }),
+        )
+    }
+
+    pub fn connect_target_removed<F: Fn(&Self, u32) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "target-removed",
+            false,
+            glib::closure_local!(move |main_view: &MainView, target_id: u32| {
+                f(main_view, target_id);
             }),
         )
     }

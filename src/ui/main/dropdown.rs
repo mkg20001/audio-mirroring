@@ -41,6 +41,7 @@ mod imp {
         pub(super) pipewire_id: Cell<u32>,
 
         pub(super) candidates: RefCell<Vec<CandidateData>>,
+        pub(super) confirmed_target_id: Cell<Option<u32>>,
 
         #[template_child]
         pub(super) dropdown: TemplateChild<gtk::DropDown>,
@@ -49,6 +50,8 @@ mod imp {
         pub(super) select_mode: TemplateChild<gtk::Box>,
         #[template_child]
         pub(super) confirm_btn: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub(super) remove_btn: TemplateChild<gtk::Button>,
 
         #[template_child]
         pub(super) use_mode: TemplateChild<gtk::Box>,
@@ -85,6 +88,9 @@ mod imp {
                     Signal::builder("selection-confirmed")
                         .param_types([u32::static_type(), u32::static_type()])
                         .build(),
+                    Signal::builder("remove-requested")
+                        .param_types([u32::static_type()])
+                        .build(),
                 ]
             });
             SIGNALS.as_ref()
@@ -102,9 +108,11 @@ mod imp {
 
                     // Emit signal with selected candidate info
                     if let Some(selected) = imp.obj().selected_candidate() {
+                        let id = selected.id();
+                        imp.confirmed_target_id.set(Some(id));
                         imp.obj().emit_by_name::<()>(
                             "selection-confirmed",
-                            &[&selected.id(), &selected.kind().as_raw()],
+                            &[&id, &selected.kind().as_raw()],
                         );
                     }
                 }));
@@ -113,6 +121,12 @@ mod imp {
                 .connect_clicked(clone!(@weak self as imp => move |_| {
                     imp.use_mode.hide();
                     imp.select_mode.show();
+                }));
+
+            self.remove_btn
+                .connect_clicked(clone!(@weak self as imp => move |_| {
+                    let target_id = imp.confirmed_target_id.get().unwrap_or(0);
+                    imp.obj().emit_by_name::<()>("remove-requested", &[&target_id]);
                 }));
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
@@ -276,6 +290,20 @@ impl Dropdown {
                 f(dropdown, id, kind);
             }),
         )
+    }
+
+    pub fn connect_remove_requested<F: Fn(&Self, u32) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "remove-requested",
+            false,
+            glib::closure_local!(move |dropdown: &Dropdown, target_id: u32| {
+                f(dropdown, target_id);
+            }),
+        )
+    }
+
+    pub fn set_removable(&self, removable: bool) {
+        self.imp().remove_btn.set_visible(removable);
     }
 
     pub fn update_candidates(&self, c: Vec<CandidateData>) {

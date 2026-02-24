@@ -30,6 +30,21 @@
                         </child>
                     </object>
                 </child>
+                <child>
+                    <object class="GtkButton" id="remove_btn">
+                        <property name="tooltip-text">Remove</property>
+                        <property name="visible">false</property>
+                        <style>
+                            <class name="circular"/>
+                            <class name="flat"/>
+                        </style>
+                        <child>
+                            <object class="GtkImage">
+                                <property name="icon-name">list-remove-symbolic</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
             </object>
         </child>
         <child>

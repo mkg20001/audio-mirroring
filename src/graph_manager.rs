@@ -413,6 +413,21 @@ mod imp {
             self.update_links();
         }
 
+        pub fn remove_target(&self, id: u32) {
+            let mut targets = self.active_targets.borrow_mut();
+            targets.retain(|&t| t != id);
+            log::info!("Target removed: node {}", id);
+            drop(targets);
+            // TODO: Remove links for this target
+            self.update_status();
+        }
+
+        fn update_status(&self) {
+            let targets = self.active_targets.borrow();
+            let device_count = targets.len() as u32;
+            self.obj().main().set_status(device_count > 0, device_count, None);
+        }
+
         fn update_links(&self) {
             let Some(source_id) = self.selected_source_id.get() else {
                 return;
@@ -513,6 +528,11 @@ impl GraphManager {
             dropdown.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
                 res.imp().add_target(id);
             }));
+        }));
+
+        // Connect to target removal
+        main.connect_target_removed(glib::clone!(@weak res => move |_main_view, target_id| {
+            res.imp().remove_target(target_id);
         }));
 
         res
