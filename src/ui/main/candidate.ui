@@ -4,10 +4,9 @@
     <template class="AudioSharingCandidate" parent="GtkWidget">
         <property name="hexpand">true</property>
         <child>
-            <object class="GtkImage">
-                <!-- Use a named icon from the system theme -->
-                <property name="icon-name">object-select</property>
-                <property name="icon-size">button</property>
+            <object class="GtkImage" id="icon">
+                <property name="icon-name">audio-card-symbolic</property>
+                <property name="icon-size">normal</property>
             </object>
         </child>
         <child>

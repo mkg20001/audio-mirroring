@@ -24,7 +24,7 @@ use adw::{
 };
 use glib::property::PropertyGet;
 
-#[derive(Clone, Copy, glib::Enum)]
+#[derive(Clone, Copy, Debug, glib::Enum)]
 #[enum_type(name = "CandidateType")]
 #[repr(u32)]
 pub enum CandidateType {
@@ -85,6 +85,8 @@ mod imp {
         )]
         #[template_child]
         pub(super) label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub(super) icon: TemplateChild<gtk::Image>,
     }
 
     impl Default for Candidate {
@@ -93,6 +95,7 @@ mod imp {
                 pipewire_id: Cell::default(),
                 kind: Cell::new(CandidateType::Application),
                 label: TemplateChild::default(),
+                icon: TemplateChild::default(),
             }
         }
     }
@@ -132,18 +135,15 @@ mod imp {
 
     impl Candidate {
         fn set_kind(&self, candidate: u32) {
-            self.kind.set(CandidateType::from_raw(candidate));
+            let kind = CandidateType::from_raw(candidate);
+            self.kind.set(kind);
 
-            /*for css_class in ["application", "device"] {
-                self.handle.remove_css_class(css_class)
-            }
-
-            // Color the port according to its media type.
-            match candidate_type {
-                CandidateType::Application => self.handle.add_css_class("application"),
-                CandidateType::Device => self.handle.add_css_class("device"),
-                _ => {}
-            }*/
+            // Update icon based on candidate type
+            let icon_name = match kind {
+                CandidateType::Application => "application-x-executable-symbolic",
+                CandidateType::Device => "audio-card-symbolic",
+            };
+            self.icon.set_icon_name(Some(icon_name));
         }
     }
 }

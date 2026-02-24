@@ -20,7 +20,7 @@ use pipewire::channel::Sender as PwSender;
 
 use crate::{ui::main, GtkMessage, PipewireMessage};
 use crate::types::{};
-use crate::ui::main::{Candidate, CandidateType, MainView};
+use crate::ui::main::{Candidate, CandidateType, Dropdown, MainView};
 
 use glib::subclass::prelude::*;
 use glib::{glib_object_wrapper, Object, ParamSpec, ParamSpecUInt, ParamSpecString, Value};
@@ -48,6 +48,12 @@ mod imp {
         pub pw_sender: OnceCell<PwSender<GtkMessage>>,
         pub nodes: RefCell<HashMap<u32, Node>>,
         pub port2node: RefCell<HashMap<u32, u32>>,
+
+        // Selected source node ID and type
+        pub selected_source_id: Cell<Option<u32>>,
+        pub selected_source_kind: Cell<Option<CandidateType>>,
+        // Active target node IDs
+        pub active_targets: RefCell<Vec<u32>>,
     }
 
     #[glib::object_subclass]
@@ -389,6 +395,78 @@ mod imp {
             //self.items.borrow_mut().clear();
             //self.obj().graph().clear();
         }
+
+        pub fn set_source(&self, id: u32, kind: CandidateType) {
+            self.selected_source_id.set(Some(id));
+            self.selected_source_kind.set(Some(kind));
+            log::info!("Source set to node {} ({:?})", id, kind);
+            self.update_links();
+        }
+
+        pub fn add_target(&self, id: u32) {
+            let mut targets = self.active_targets.borrow_mut();
+            if !targets.contains(&id) {
+                targets.push(id);
+                log::info!("Target added: node {}", id);
+            }
+            drop(targets);
+            self.update_links();
+        }
+
+        fn update_links(&self) {
+            let Some(source_id) = self.selected_source_id.get() else {
+                return;
+            };
+            let Some(source_kind) = self.selected_source_kind.get() else {
+                return;
+            };
+
+            let nodes = self.nodes.borrow();
+            let Some(source_node) = nodes.get(&source_id) else {
+                log::warn!("Source node {} not found", source_id);
+                return;
+            };
+
+            // Determine source port labels based on kind
+            let (source_fl_label, source_fr_label) = match source_kind {
+                CandidateType::Device => ("monitor_FL", "monitor_FR"),
+                CandidateType::Application => ("output_FL", "output_FR"),
+            };
+
+            let source_fl = source_node.get_port_by_label(source_fl_label);
+            let source_fr = source_node.get_port_by_label(source_fr_label);
+
+            let (Some(source_fl), Some(source_fr)) = (source_fl, source_fr) else {
+                log::warn!("Source ports not found for node {}", source_id);
+                return;
+            };
+
+            let targets = self.active_targets.borrow();
+            let mut device_count = 0u32;
+
+            for target_id in targets.iter() {
+                let Some(target_node) = nodes.get(target_id) else {
+                    log::warn!("Target node {} not found", target_id);
+                    continue;
+                };
+
+                let target_fl = target_node.get_port_by_label("playback_FL");
+                let target_fr = target_node.get_port_by_label("playback_FR");
+
+                let (Some(target_fl), Some(target_fr)) = (target_fl, target_fr) else {
+                    log::warn!("Target ports not found for node {}", target_id);
+                    continue;
+                };
+
+                // Create links
+                self.toggle_link(source_fl.get_id(), target_fl.get_id());
+                self.toggle_link(source_fr.get_id(), target_fr.get_id());
+                device_count += 1;
+            }
+
+            // Update status
+            self.obj().main().set_status(device_count > 0, device_count, None);
+        }
     }
 }
 
@@ -418,6 +496,33 @@ impl GraphManager {
             "Should be able to set pw_sender)"
         );
 
+        // Connect to source dropdown selection
+        let source_dd = main.source_dd();
+        source_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, kind| {
+            res.imp().set_source(id, CandidateType::from_raw(kind));
+        }));
+
+        // Connect to target dropdown selection
+        let target_dd = main.target_dd();
+        target_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
+            res.imp().add_target(id);
+        }));
+
+        // Connect to dynamically added target dropdowns
+        main.connect_target_dropdown_added(glib::clone!(@weak res => move |_main_view, dropdown| {
+            dropdown.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
+                res.imp().add_target(id);
+            }));
+        }));
+
         res
+    }
+
+    pub fn set_source(&self, id: u32, kind: CandidateType) {
+        self.imp().set_source(id, kind);
+    }
+
+    pub fn add_target(&self, id: u32) {
+        self.imp().add_target(id);
     }
 }

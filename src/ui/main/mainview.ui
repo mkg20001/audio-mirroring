@@ -29,19 +29,68 @@
                     </object>
                 </child>
                 <child>
-                    <object class="GtkLabel" id="mirror_devices_label">
-                        <property name="single-line-mode">True</property>
-                        <property name="hexpand">yes</property>
+                    <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
                         <property name="halign">center</property>
-                        <property name="label" translatable="yes">Mirror Devices</property>
-                        <style>
-                            <class name="big"/>
-                        </style>
+                        <property name="spacing">8</property>
+                        <child>
+                            <object class="GtkLabel" id="mirror_devices_label">
+                                <property name="single-line-mode">True</property>
+                                <property name="label" translatable="yes">Mirror Devices</property>
+                                <style>
+                                    <class name="big"/>
+                                </style>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkButton" id="add_target_btn">
+                                <property name="tooltip-text">Add target device</property>
+                                <style>
+                                    <class name="circular"/>
+                                    <class name="flat"/>
+                                </style>
+                                <child>
+                                    <object class="GtkImage">
+                                        <property name="icon-name">list-add-symbolic</property>
+                                    </object>
+                                </child>
+                            </object>
+                        </child>
                     </object>
                 </child>
                 <child>
-                    <object class="AudioSharingDropdown" id="target_dd">
-                        <property name="hexpand">true</property>
+                    <object class="GtkBox" id="targets_container">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">4</property>
+                        <child>
+                            <object class="AudioSharingDropdown" id="target_dd">
+                                <property name="hexpand">true</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkSeparator">
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkBox" id="status_bar">
+                        <property name="orientation">horizontal</property>
+                        <property name="halign">center</property>
+                        <property name="spacing">8</property>
+                        <child>
+                            <object class="GtkImage" id="status_icon">
+                                <property name="icon-name">media-playback-stop-symbolic</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkLabel" id="status_label">
+                                <property name="label">Not mirroring</property>
+                                <style>
+                                    <class name="dim-label"/>
+                                </style>
+                            </object>
+                        </child>
                     </object>
                 </child>
             </object>

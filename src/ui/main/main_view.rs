@@ -25,7 +25,10 @@ mod imp {
     use super::*;
 
     use crate::NodeType;
+    use glib::clone;
+    use glib::subclass::Signal;
     use glib::{List, Value};
+    use once_cell::sync::Lazy;
     use std::cell::{Cell, OnceCell, RefCell};
     use std::collections::HashSet;
 
@@ -49,6 +52,18 @@ mod imp {
         #[template_child]
         #[property(type = super::Dropdown, get = |_| self.target_dd.clone())]
         pub target_dd: TemplateChild<Dropdown>,
+
+        #[template_child]
+        pub targets_container: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub add_target_btn: TemplateChild<gtk::Button>,
+
+        #[template_child]
+        pub status_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub status_icon: TemplateChild<gtk::Image>,
+
+        pub target_candidates: RefCell<Vec<CandidateData>>,
         /*#[property(get, set, construct_only)]
         pub(super) pipewire_id: Cell<u32>,
         #[property(
@@ -100,12 +115,26 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for MainView {
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![Signal::builder("target-dropdown-added")
+                    .param_types([Dropdown::static_type()])
+                    .build()]
+            });
+            SIGNALS.as_ref()
+        }
+
         fn constructed(&self) {
             self.parent_constructed();
+
+            self.add_target_btn
+                .connect_clicked(clone!(@weak self as imp => move |_| {
+                    imp.obj().add_target_dropdown();
+                }));
         }
 
         fn dispose(&self) {
-            if let Some(child) = self.obj().first_child() {
+            while let Some(child) = self.obj().first_child() {
                 child.unparent();
             }
         }
@@ -131,8 +160,61 @@ impl MainView {
     pub fn update_candidates(&self, source: Vec<CandidateData>, target: Vec<CandidateData>) {
         let imp = self.imp();
         imp.source_dd.update_candidates(source);
-        imp.target_dd.update_candidates(target);
-        let nodes = imp.nodes.borrow_mut();
-        // nodes.add(node);
+
+        // Store target candidates for new dropdowns
+        imp.target_candidates.replace(target.clone());
+
+        // Update all target dropdowns
+        let container = &*imp.targets_container;
+        let mut child = container.first_child();
+        while let Some(widget) = child {
+            if let Some(dropdown) = widget.downcast_ref::<Dropdown>() {
+                dropdown.update_candidates(target.clone());
+            }
+            child = widget.next_sibling();
+        }
+    }
+
+    pub fn add_target_dropdown(&self) {
+        let imp = self.imp();
+        let dropdown = Dropdown::new();
+        dropdown.set_hexpand(true);
+
+        // Populate with current candidates
+        let candidates = imp.target_candidates.borrow().clone();
+        dropdown.update_candidates(candidates);
+
+        imp.targets_container.append(&dropdown);
+
+        // Emit signal so GraphManager can connect to the new dropdown
+        self.emit_by_name::<()>("target-dropdown-added", &[&dropdown]);
+    }
+
+    pub fn connect_target_dropdown_added<F: Fn(&Self, &Dropdown) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "target-dropdown-added",
+            false,
+            glib::closure_local!(move |main_view: &MainView, dropdown: &Dropdown| {
+                f(main_view, dropdown);
+            }),
+        )
+    }
+
+    pub fn set_status(&self, mirroring: bool, device_count: u32, last_event: Option<&str>) {
+        let imp = self.imp();
+        if mirroring {
+            imp.status_icon.set_icon_name(Some("media-playback-start-symbolic"));
+            let status = match last_event {
+                Some(event) => format!("Mirroring to {} device(s) - {}", device_count, event),
+                None => format!("Mirroring to {} device(s)", device_count),
+            };
+            imp.status_label.set_text(&status);
+        } else {
+            imp.status_icon.set_icon_name(Some("media-playback-stop-symbolic"));
+            imp.status_label.set_text("Not mirroring");
+        }
     }
 }

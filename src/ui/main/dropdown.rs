@@ -24,6 +24,8 @@ mod imp {
     use super::*;
     use crate::gtk::{Box, Image, Label, ListItemFactory, Orientation};
     use crate::ui::main::dropdown::glib::clone;
+    use glib::subclass::Signal;
+    use once_cell::sync::Lazy;
 
     use crate::ui::main::Candidate;
     use std::{
@@ -77,6 +79,17 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for Dropdown {
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![
+                    Signal::builder("selection-confirmed")
+                        .param_types([u32::static_type(), u32::static_type()])
+                        .build(),
+                ]
+            });
+            SIGNALS.as_ref()
+        }
+
         fn constructed(&self) {
             self.parent_constructed();
 
@@ -86,6 +99,20 @@ mod imp {
                 .connect_clicked(clone!(@weak self as imp => move |_| {
                     imp.select_mode.hide();
                     imp.use_mode.show();
+
+                    // Emit signal with selected candidate info
+                    if let Some(selected) = imp.obj().selected_candidate() {
+                        imp.obj().emit_by_name::<()>(
+                            "selection-confirmed",
+                            &[&selected.id(), &selected.kind().as_raw()],
+                        );
+                    }
+                }));
+
+            self.edit_btn
+                .connect_clicked(clone!(@weak self as imp => move |_| {
+                    imp.use_mode.hide();
+                    imp.select_mode.show();
                 }));
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
@@ -228,11 +255,27 @@ glib::wrapper! {
 }
 
 impl Dropdown {
-    pub fn new(/*name: &str, pipewire_id: u32*/) -> Self {
-        glib::Object::builder()
-            /*.property("node-name", name)
-            .property("pipewire-id", pipewire_id)*/
-            .build()
+    pub fn new() -> Self {
+        glib::Object::builder().build()
+    }
+
+    pub fn selected_candidate(&self) -> Option<CandidateData> {
+        let imp = self.imp();
+        let selected = imp.dropdown.selected();
+        if selected == gtk::INVALID_LIST_POSITION {
+            return None;
+        }
+        imp.candidates.borrow().get(selected as usize).cloned()
+    }
+
+    pub fn connect_selection_confirmed<F: Fn(&Self, u32, u32) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "selection-confirmed",
+            false,
+            glib::closure_local!(move |dropdown: &Dropdown, id: u32, kind: u32| {
+                f(dropdown, id, kind);
+            }),
+        )
     }
 
     pub fn update_candidates(&self, c: Vec<CandidateData>) {
