@@ -42,6 +42,7 @@ mod imp {
 
         pub(super) candidates: RefCell<Vec<CandidateData>>,
         pub(super) confirmed_target_id: Cell<Option<u32>>,
+        pub(super) updating_volume: Cell<bool>,
 
         #[template_child]
         pub(super) dropdown: TemplateChild<gtk::DropDown>,
@@ -159,6 +160,10 @@ mod imp {
 
             self.volume_slider
                 .connect_value_changed(clone!(@weak self as imp => move |scale| {
+                    // Don't emit signal if we're updating programmatically
+                    if imp.updating_volume.get() {
+                        return;
+                    }
                     if let Some(node_id) = imp.confirmed_target_id.get() {
                         let volume = scale.value() / 100.0; // Convert 0-100 to 0.0-1.0
                         imp.obj().emit_by_name::<()>("volume-changed", &[&node_id, &volume]);
@@ -340,6 +345,20 @@ impl Dropdown {
 
     pub fn set_removable(&self, removable: bool) {
         self.imp().remove_btn.set_visible(removable);
+    }
+
+    pub fn confirmed_node_id(&self) -> Option<u32> {
+        self.imp().confirmed_target_id.get()
+    }
+
+    pub fn set_volume(&self, volume: f32) {
+        let imp = self.imp();
+        // Set flag to prevent feedback loop
+        imp.updating_volume.set(true);
+        // Convert 0.0-1.0 to 0-100 for the slider
+        let slider_value = (volume * 100.0).clamp(0.0, 100.0) as f64;
+        imp.volume_slider.set_value(slider_value);
+        imp.updating_volume.set(false);
     }
 
     pub fn connect_volume_changed<F: Fn(&Self, u32, f64) + 'static>(&self, f: F) -> glib::SignalHandlerId {

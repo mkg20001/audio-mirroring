@@ -154,9 +154,10 @@ pub(super) fn thread_main(
         let state = Rc::new(RefCell::new(State::new()));
 
         let receiver = pw_receiver.attach(mainloop.loop_(), {
-            clone!(@strong mainloop, @weak core, @weak registry, @strong state, @strong loop_state, @strong proxies => move |msg| match msg {
+            clone!(@strong mainloop, @weak core, @weak registry, @strong state, @strong loop_state, @strong proxies, @strong gtk_sender => move |msg| match msg {
                 GtkMessage::ToggleLink { port_from, port_to } => toggle_link(port_from, port_to, &core, &registry, &state),
-                GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies),
+                GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume),
+                GtkMessage::GetVolume { node_id } => get_volume(node_id, &gtk_sender),
                 GtkMessage::Terminate | GtkMessage::Connect(_) => {
                     loop_state.borrow_mut().handle_message(msg);
                     mainloop.quit();
@@ -547,7 +548,7 @@ fn toggle_link(
     }
 }
 
-fn set_volume(node_id: u32, volume: f32, _proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+fn set_volume(node_id: u32, volume: f32) {
     // Clamp volume between 0.0 and 1.0
     let volume = volume.clamp(0.0, 1.0);
 
@@ -572,6 +573,39 @@ fn set_volume(node_id: u32, volume: f32, _proxies: &Rc<RefCell<HashMap<u32, Prox
             }
             Err(e) => {
                 warn!("Failed to run wpctl for node {}: {}", node_id, e);
+            }
+        }
+    });
+}
+
+fn get_volume(node_id: u32, sender: &async_channel::Sender<PipewireMessage>) {
+    let sender = sender.clone();
+
+    std::thread::spawn(move || {
+        match std::process::Command::new("wpctl")
+            .args(["get-volume", &node_id.to_string()])
+            .output()
+        {
+            Ok(output) => {
+                if output.status.success() {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    // Parse output like "Volume: 0.50" or "Volume: 0.50 [MUTED]"
+                    if let Some(vol_str) = stdout.split_whitespace().nth(1) {
+                        if let Ok(volume) = vol_str.parse::<f32>() {
+                            info!("Got volume for node {}: {}", node_id, volume);
+                            let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
+                                node_id,
+                                volume,
+                            });
+                        }
+                    }
+                } else {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    warn!("wpctl get-volume failed for node {}: {}", node_id, stderr);
+                }
+            }
+            Err(e) => {
+                warn!("Failed to run wpctl get-volume for node {}: {}", node_id, e);
             }
         }
     });

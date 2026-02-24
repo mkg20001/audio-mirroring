@@ -110,6 +110,9 @@ mod imp {
                     PipewireMessage::NodeRemoved { id } => self.remove_node(id),
                     PipewireMessage::PortRemoved { id, node_id } => self.remove_port(id, node_id),
                     PipewireMessage::LinkRemoved { id } => self.remove_link(id),
+                    PipewireMessage::VolumeChanged { node_id, volume } => {
+                        self.volume_changed(node_id, volume)
+                    }
                     PipewireMessage::Connecting => {
                         self.obj().connection_banner().set_revealed(true);
                     }
@@ -548,6 +551,18 @@ mod imp {
             // Update status
             self.obj().main().set_status(device_count > 0, device_count, None);
         }
+
+        fn volume_changed(&self, node_id: u32, volume: f32) {
+            log::info!("Volume changed for node {}: {}", node_id, volume);
+            self.obj().main().update_volume(node_id, volume);
+        }
+
+        pub fn get_volume(&self, node_id: u32) {
+            let sender = self.pw_sender.get().expect("pw_sender should be set");
+            sender
+                .send(crate::GtkMessage::GetVolume { node_id })
+                .expect("Failed to send get volume message");
+        }
     }
 }
 
@@ -581,6 +596,7 @@ impl GraphManager {
         let source_dd = main.source_dd();
         source_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, kind| {
             res.imp().set_source(id, CandidateType::from_raw(kind));
+            res.get_volume(id);
         }));
 
         // Connect to source dropdown volume changes
@@ -597,6 +613,7 @@ impl GraphManager {
         let target_dd = main.target_dd();
         target_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
             res.imp().add_target(id);
+            res.get_volume(id);
         }));
 
         // Connect to target dropdown volume changes
@@ -613,6 +630,7 @@ impl GraphManager {
         main.connect_target_dropdown_added(glib::clone!(@weak res => move |_main_view, dropdown| {
             dropdown.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
                 res.imp().add_target(id);
+                res.get_volume(id);
             }));
             dropdown.connect_volume_changed(glib::clone!(@weak res => move |_dropdown, node_id, volume| {
                 res.set_volume(node_id, volume as f32);
@@ -643,5 +661,9 @@ impl GraphManager {
         sender
             .send(crate::GtkMessage::SetVolume { node_id, volume })
             .expect("Failed to send volume message");
+    }
+
+    pub fn get_volume(&self, node_id: u32) {
+        self.imp().get_volume(node_id);
     }
 }

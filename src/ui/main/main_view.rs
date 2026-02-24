@@ -244,4 +244,27 @@ impl MainView {
             imp.status_label.set_text("Not mirroring");
         }
     }
+
+    pub fn update_volume(&self, node_id: u32, volume: f32) {
+        let imp = self.imp();
+
+        // Check source dropdown
+        if imp.source_dd.confirmed_node_id() == Some(node_id) {
+            imp.source_dd.set_volume(volume);
+            return;
+        }
+
+        // Check all target dropdowns
+        let container = &*imp.targets_container;
+        let mut child = container.first_child();
+        while let Some(widget) = child {
+            if let Some(dropdown) = widget.downcast_ref::<Dropdown>() {
+                if dropdown.confirmed_node_id() == Some(node_id) {
+                    dropdown.set_volume(volume);
+                    return;
+                }
+            }
+            child = widget.next_sibling();
+        }
+    }
 }

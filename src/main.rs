@@ -31,6 +31,8 @@ pub enum GtkMessage {
     ToggleLink { port_from: u32, port_to: u32 },
     /// Set volume for a node (0.0 to 1.0).
     SetVolume { node_id: u32, volume: f32 },
+    /// Request current volume for a node.
+    GetVolume { node_id: u32 },
     /// Connect to PipeWire service.
     Connect(Option<String>),
     /// Quit the event loop and let the thread finish.
@@ -84,6 +86,10 @@ pub enum PipewireMessage {
     },
     LinkRemoved {
         id: u32,
+    },
+    VolumeChanged {
+        node_id: u32,
+        volume: f32,
     },
     Connecting,
     Connected,
