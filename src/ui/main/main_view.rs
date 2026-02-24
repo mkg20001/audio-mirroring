@@ -136,6 +136,18 @@ mod imp {
                 .connect_clicked(clone!(@weak self as imp => move |_| {
                     imp.obj().add_target_dropdown();
                 }));
+
+            // Connect remove signal for the first target dropdown
+            let container = self.targets_container.clone();
+            let obj = self.obj().clone();
+            self.target_dd.connect_remove_requested(move |dd, target_id| {
+                container.remove(dd);
+                obj.emit_by_name::<()>("target-removed", &[&target_id]);
+                obj.update_removable_states();
+            });
+
+            // Initial state: single dropdown, not removable
+            self.obj().update_removable_states();
         }
 
         fn dispose(&self) {
@@ -184,7 +196,6 @@ impl MainView {
         let imp = self.imp();
         let dropdown = Dropdown::new();
         dropdown.set_hexpand(true);
-        dropdown.set_removable(true);
 
         // Populate with current candidates
         let candidates = imp.target_candidates.borrow().clone();
@@ -196,12 +207,41 @@ impl MainView {
         dropdown.connect_remove_requested(move |dd, target_id| {
             container.remove(dd);
             main_view.emit_by_name::<()>("target-removed", &[&target_id]);
+            main_view.update_removable_states();
         });
 
         imp.targets_container.append(&dropdown);
 
+        // Update removable states for all dropdowns
+        self.update_removable_states();
+
         // Emit signal so GraphManager can connect to the new dropdown
         self.emit_by_name::<()>("target-dropdown-added", &[&dropdown]);
+    }
+
+    fn update_removable_states(&self) {
+        let imp = self.imp();
+        let container = &*imp.targets_container;
+
+        // Count dropdowns
+        let mut count = 0;
+        let mut child = container.first_child();
+        while let Some(widget) = child {
+            if widget.downcast_ref::<Dropdown>().is_some() {
+                count += 1;
+            }
+            child = widget.next_sibling();
+        }
+
+        // Update removable state: only removable if more than one dropdown
+        let removable = count > 1;
+        let mut child = container.first_child();
+        while let Some(widget) = child {
+            if let Some(dropdown) = widget.downcast_ref::<Dropdown>() {
+                dropdown.set_removable(removable);
+            }
+            child = widget.next_sibling();
+        }
     }
 
     pub fn connect_target_dropdown_added<F: Fn(&Self, &Dropdown) + 'static>(
