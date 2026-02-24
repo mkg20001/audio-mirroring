@@ -206,12 +206,8 @@ pub(super) fn thread_main(
                         Item::Port { node_id } => PipewireMessage::PortRemoved {id, node_id},
                         Item::Link { .. } => PipewireMessage::LinkRemoved {id},
                     }).expect("Failed to send message");
-                } else {
-                    warn!(
-                        "Attempted to remove item with id {} that is not saved in state",
-                        id
-                    );
                 }
+                // Objects we don't track (params, metadata, etc.) are silently ignored
 
                 proxies.borrow_mut().remove(&id);
             }))
