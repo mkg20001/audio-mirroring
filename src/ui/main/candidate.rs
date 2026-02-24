@@ -104,6 +104,7 @@ mod imp {
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
+            klass.set_layout_manager_type::<gtk::BoxLayout>();
             klass.set_css_name("candidate");
 
             klass.bind_template();
@@ -118,6 +119,12 @@ mod imp {
     impl ObjectImpl for Candidate {
         fn constructed(&self) {
             self.parent_constructed();
+        }
+
+        fn dispose(&self) {
+            while let Some(child) = self.obj().first_child() {
+                child.unparent();
+            }
         }
     }
 

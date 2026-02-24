@@ -22,14 +22,14 @@ use glib::prelude::*;
 mod imp {
     use super::*;
 
-    use std::cell::Cell;
+    use std::cell::{Cell, RefCell};
 
     use once_cell::sync::Lazy;
 
     pub struct CandidateData {
         pub id: Cell<u32>,
         pub kind: Cell<u32>,
-        pub label: Cell<String>,
+        pub label: RefCell<String>,
     }
 
     impl Default for CandidateData {
@@ -37,7 +37,7 @@ mod imp {
             Self {
                 id: Cell::default(),
                 kind: Cell::new(0),
-                label: Cell::default(),
+                label: RefCell::new(String::new()),
             }
         }
     }
@@ -72,7 +72,7 @@ mod imp {
             match pspec.name() {
                 "id" => self.id.get().to_value(),
                 "kind" => self.kind.get().to_value(),
-                "label" => self.label.take().to_value(),
+                "label" => self.label.borrow().clone().to_value(),
                 _ => unimplemented!(),
             }
         }
@@ -84,8 +84,8 @@ mod imp {
                     .kind
                     .set(value.get::<CandidateType>().unwrap().as_raw()),
                 "label" => {
-                    if let Ok(new_label) = value.get() {
-                        self.label.set(new_label)
+                    if let Ok(new_label) = value.get::<String>() {
+                        *self.label.borrow_mut() = new_label;
                     }
                 }
                 _ => unimplemented!(),

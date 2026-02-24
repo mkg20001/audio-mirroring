@@ -1,4 +1,4 @@
-#![feature(sized_hierarchy)]// Copyright 2021 Tom A. Wagner <tom.a.wagner@protonmail.com>
+// Copyright 2021 Tom A. Wagner <tom.a.wagner@protonmail.com>
 
 //
 // This program is free software: you can redistribute it and/or modify
