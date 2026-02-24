@@ -156,6 +156,7 @@ pub(super) fn thread_main(
         let receiver = pw_receiver.attach(mainloop.loop_(), {
             clone!(@strong mainloop, @weak core, @weak registry, @strong state, @strong loop_state, @strong proxies, @strong gtk_sender => move |msg| match msg {
                 GtkMessage::ToggleLink { port_from, port_to } => toggle_link(port_from, port_to, &core, &registry, &state),
+                GtkMessage::CreateLink { port_from, port_to } => create_link(port_from, port_to, &core, &state),
                 GtkMessage::RemoveLink { port_from, port_to } => remove_link(port_from, port_to, &registry, &state),
                 GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies),
                 GtkMessage::GetVolume { node_id } => get_volume(node_id, &proxies),
@@ -574,6 +575,48 @@ fn remove_link(
             "Link from port {} to port {} does not exist, skipping removal",
             port_from, port_to
         );
+    }
+}
+
+/// Create a link between the two specified ports (only if it doesn't exist).
+fn create_link(
+    port_from: u32,
+    port_to: u32,
+    core: &Rc<Core>,
+    state: &Rc<RefCell<State>>,
+) {
+    let state = state.borrow_mut();
+    if state.get_link_id(port_from, port_to).is_some() {
+        info!(
+            "Link from port {} to port {} already exists, skipping creation",
+            port_from, port_to
+        );
+        return;
+    }
+
+    info!(
+        "Requesting creation of link from port id:{} to port id:{}",
+        port_from, port_to
+    );
+
+    let node_from = state
+        .get_node_of_port(port_from)
+        .expect("Requested port not in state");
+    let node_to = state
+        .get_node_of_port(port_to)
+        .expect("Requested port not in state");
+
+    if let Err(e) = core.create_object::<Link>(
+        "link-factory",
+        &properties! {
+            "link.output.node" => node_from.to_string(),
+            "link.output.port" => port_from.to_string(),
+            "link.input.node" => node_to.to_string(),
+            "link.input.port" => port_to.to_string(),
+            "object.linger" => "1"
+        },
+    ) {
+        warn!("Failed to create link: {}", e);
     }
 }
 

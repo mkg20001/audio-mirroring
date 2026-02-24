@@ -384,6 +384,14 @@ mod imp {
                 .expect("Failed to send message");
         }
 
+        // Create a link between the two specified ports (only if it doesn't exist).
+        fn create_link_in_pw(&self, port_from: u32, port_to: u32) {
+            let sender = self.pw_sender.get().expect("pw_sender shoud be set");
+            sender
+                .send(crate::GtkMessage::CreateLink { port_from, port_to })
+                .expect("Failed to send message");
+        }
+
         // Remove a link between the two specified ports (only if it exists).
         fn remove_link_from_pw(&self, port_from: u32, port_to: u32) {
             let sender = self.pw_sender.get().expect("pw_sender shoud be set");
@@ -557,14 +565,14 @@ mod imp {
                 let link_fl = (source_fl.get_id(), target_fl.get_id());
                 let link_fr = (source_fr.get_id(), target_fr.get_id());
 
-                // Only create links if they don't already exist
+                // Only create links if they don't already exist in our tracking
                 let mut active_links = self.active_links.borrow_mut();
                 if !active_links.contains(&link_fl) {
-                    self.toggle_link(link_fl.0, link_fl.1);
+                    self.create_link_in_pw(link_fl.0, link_fl.1);
                     active_links.push(link_fl);
                 }
                 if !active_links.contains(&link_fr) {
-                    self.toggle_link(link_fr.0, link_fr.1);
+                    self.create_link_in_pw(link_fr.0, link_fr.1);
                     active_links.push(link_fr);
                 }
                 drop(active_links);
