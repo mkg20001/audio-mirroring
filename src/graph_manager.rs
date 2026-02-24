@@ -126,25 +126,18 @@ mod imp {
         }
 
         fn get_candidates_source(&self) -> Vec<CandidateData> {
-            let mut seen_names = std::collections::HashSet::new();
             self.nodes.borrow().iter().filter_map(|(_, node)| {
-                let name = node.get_name();
-                if seen_names.contains(&name) {
-                    return None;
-                }
                 if node.has_port_by_label("output_FL") && node.has_port_by_label("output_FR") {
-                    seen_names.insert(name.clone());
                     Some(CandidateData::new(
                         node.get_id(),
                         CandidateType::Application,
-                        name,
+                        node.get_name(),
                     ))
                 } else if node.has_port_by_label("monitor_FL") && node.has_port_by_label("monitor_FR") {
-                    seen_names.insert(name.clone());
                     Some(CandidateData::new(
                         node.get_id(),
                         CandidateType::Device,
-                        name,
+                        node.get_name(),
                     ))
                 } else {
                     None
@@ -153,18 +146,12 @@ mod imp {
         }
 
         fn get_candidates_target(&self) -> Vec<CandidateData> {
-            let mut seen_names = std::collections::HashSet::new();
             self.nodes.borrow().iter().filter_map(|(_, node)| {
-                let name = node.get_name();
-                if seen_names.contains(&name) {
-                    return None;
-                }
                 if node.has_port_by_label("playback_FR") && node.has_port_by_label("playback_FL") {
-                    seen_names.insert(name.clone());
                     Some(CandidateData::new(
                         node.get_id(),
                         CandidateType::Device,
-                        name,
+                        node.get_name(),
                     ))
                 } else {
                     None
