@@ -426,6 +426,14 @@ mod imp {
             self.update_status();
         }
 
+        pub fn clear_source(&self) {
+            self.selected_source_id.set(None);
+            self.selected_source_kind.set(None);
+            log::info!("Source cleared");
+            // TODO: Remove links from source
+            self.update_status();
+        }
+
         fn update_status(&self) {
             let targets = self.active_targets.borrow();
             let device_count = targets.len() as u32;
@@ -526,6 +534,11 @@ impl GraphManager {
             res.set_volume(node_id, volume as f32);
         }));
 
+        // Connect to source dropdown selection cancelled (edit mode)
+        source_dd.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, _source_id| {
+            res.imp().clear_source();
+        }));
+
         // Connect to target dropdown selection
         let target_dd = main.target_dd();
         target_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
@@ -537,6 +550,11 @@ impl GraphManager {
             res.set_volume(node_id, volume as f32);
         }));
 
+        // Connect to target dropdown selection cancelled (edit mode)
+        target_dd.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, target_id| {
+            res.imp().remove_target(target_id);
+        }));
+
         // Connect to dynamically added target dropdowns
         main.connect_target_dropdown_added(glib::clone!(@weak res => move |_main_view, dropdown| {
             dropdown.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
@@ -544,6 +562,9 @@ impl GraphManager {
             }));
             dropdown.connect_volume_changed(glib::clone!(@weak res => move |_dropdown, node_id, volume| {
                 res.set_volume(node_id, volume as f32);
+            }));
+            dropdown.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, target_id| {
+                res.imp().remove_target(target_id);
             }));
         }));
 

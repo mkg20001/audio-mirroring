@@ -98,6 +98,9 @@ mod imp {
                     Signal::builder("volume-changed")
                         .param_types([u32::static_type(), f64::static_type()])
                         .build(),
+                    Signal::builder("selection-cancelled")
+                        .param_types([u32::static_type()])
+                        .build(),
                 ]
             });
             SIGNALS.as_ref()
@@ -139,6 +142,11 @@ mod imp {
 
             self.edit_btn
                 .connect_clicked(clone!(@weak self as imp => move |_| {
+                    // Emit cancellation signal before switching modes
+                    if let Some(target_id) = imp.confirmed_target_id.get() {
+                        imp.obj().emit_by_name::<()>("selection-cancelled", &[&target_id]);
+                    }
+                    imp.confirmed_target_id.set(None);
                     imp.use_mode.hide();
                     imp.select_mode.show();
                 }));
@@ -340,6 +348,16 @@ impl Dropdown {
             false,
             glib::closure_local!(move |dropdown: &Dropdown, node_id: u32, volume: f64| {
                 f(dropdown, node_id, volume);
+            }),
+        )
+    }
+
+    pub fn connect_selection_cancelled<F: Fn(&Self, u32) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "selection-cancelled",
+            false,
+            glib::closure_local!(move |dropdown: &Dropdown, target_id: u32| {
+                f(dropdown, target_id);
             }),
         )
     }
