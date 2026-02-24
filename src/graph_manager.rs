@@ -54,6 +54,8 @@ mod imp {
         pub selected_source_kind: Cell<Option<CandidateType>>,
         // Active target node IDs
         pub active_targets: RefCell<Vec<u32>>,
+        // Active links (port_from, port_to) that we created
+        pub active_links: RefCell<Vec<(u32, u32)>>,
     }
 
     #[glib::object_subclass]
@@ -418,19 +420,59 @@ mod imp {
         }
 
         pub fn remove_target(&self, id: u32) {
+            // Find and remove links to this target's ports
+            let nodes = self.nodes.borrow();
+            if let Some(target_node) = nodes.get(&id) {
+                let target_fl = target_node.get_port_by_label("playback_FL");
+                let target_fr = target_node.get_port_by_label("playback_FR");
+
+                let mut links_to_remove = Vec::new();
+                {
+                    let active_links = self.active_links.borrow();
+                    for &(port_from, port_to) in active_links.iter() {
+                        if let Some(ref fl) = target_fl {
+                            if port_to == fl.get_id() {
+                                links_to_remove.push((port_from, port_to));
+                            }
+                        }
+                        if let Some(ref fr) = target_fr {
+                            if port_to == fr.get_id() {
+                                links_to_remove.push((port_from, port_to));
+                            }
+                        }
+                    }
+                }
+
+                // Toggle off the links
+                for (port_from, port_to) in &links_to_remove {
+                    self.toggle_link(*port_from, *port_to);
+                }
+
+                // Remove from active links
+                self.active_links.borrow_mut().retain(|link| !links_to_remove.contains(link));
+                log::info!("Target removed: node {}, removed {} links", id, links_to_remove.len());
+            }
+            drop(nodes);
+
             let mut targets = self.active_targets.borrow_mut();
             targets.retain(|&t| t != id);
-            log::info!("Target removed: node {}", id);
             drop(targets);
-            // TODO: Remove links for this target
+
             self.update_status();
         }
 
         pub fn clear_source(&self) {
+            // Remove all active links
+            let links = self.active_links.borrow().clone();
+            let link_count = links.len();
+            for (port_from, port_to) in links {
+                self.toggle_link(port_from, port_to);
+            }
+            self.active_links.borrow_mut().clear();
+
             self.selected_source_id.set(None);
             self.selected_source_kind.set(None);
-            log::info!("Source cleared");
-            // TODO: Remove links from source
+            log::info!("Source cleared, removed {} links", link_count);
             self.update_status();
         }
 
@@ -485,9 +527,21 @@ mod imp {
                     continue;
                 };
 
-                // Create links
-                self.toggle_link(source_fl.get_id(), target_fl.get_id());
-                self.toggle_link(source_fr.get_id(), target_fr.get_id());
+                let link_fl = (source_fl.get_id(), target_fl.get_id());
+                let link_fr = (source_fr.get_id(), target_fr.get_id());
+
+                // Only create links if they don't already exist
+                let mut active_links = self.active_links.borrow_mut();
+                if !active_links.contains(&link_fl) {
+                    self.toggle_link(link_fl.0, link_fl.1);
+                    active_links.push(link_fl);
+                }
+                if !active_links.contains(&link_fr) {
+                    self.toggle_link(link_fr.0, link_fr.1);
+                    active_links.push(link_fr);
+                }
+                drop(active_links);
+
                 device_count += 1;
             }
 
