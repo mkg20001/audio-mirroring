@@ -29,6 +29,8 @@ use pipewire::spa::{param::format::MediaType, utils::Direction};
 pub enum GtkMessage {
     /// Toggle a link between the two specified ports.
     ToggleLink { port_from: u32, port_to: u32 },
+    /// Set volume for a node (0.0 to 1.0).
+    SetVolume { node_id: u32, volume: f32 },
     /// Connect to PipeWire service.
     Connect(Option<String>),
     /// Quit the event loop and let the thread finish.

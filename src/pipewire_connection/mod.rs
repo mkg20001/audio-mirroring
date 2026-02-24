@@ -43,7 +43,7 @@ use state::{Item, State};
 
 enum ProxyItem {
     Node {
-        _proxy: Node,
+        proxy: Node,
         _listener: NodeListener,
     },
     Port {
@@ -154,8 +154,9 @@ pub(super) fn thread_main(
         let state = Rc::new(RefCell::new(State::new()));
 
         let receiver = pw_receiver.attach(mainloop.loop_(), {
-            clone!(@strong mainloop, @weak core, @weak registry, @strong state, @strong loop_state => move |msg| match msg {
+            clone!(@strong mainloop, @weak core, @weak registry, @strong state, @strong loop_state, @strong proxies => move |msg| match msg {
                 GtkMessage::ToggleLink { port_from, port_to } => toggle_link(port_from, port_to, &core, &registry, &state),
+                GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies),
                 GtkMessage::Terminate | GtkMessage::Connect(_) => {
                     loop_state.borrow_mut().handle_message(msg);
                     mainloop.quit();
@@ -287,7 +288,7 @@ fn handle_node(
     proxies.borrow_mut().insert(
         node.id,
         ProxyItem::Node {
-            _proxy: proxy,
+            proxy,
             _listener: listener,
         },
     );
@@ -543,6 +544,67 @@ fn toggle_link(
         ) {
             warn!("Failed to create link: {}", e);
         }
+    }
+}
+
+fn set_volume(node_id: u32, volume: f32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+    use pipewire::spa::pod::serialize::PodSerializer;
+    use pipewire::spa::pod::{Object, Property, PropertyFlags, Value, ValueArray};
+    use std::io::Cursor;
+
+    let proxies = proxies.borrow();
+    if let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) {
+        // Clamp volume between 0.0 and 1.0
+        let volume = volume.clamp(0.0, 1.0);
+
+        // Convert linear volume to cubic (perceptual) scale for better UX
+        let cubic_volume = volume * volume * volume;
+
+        info!("Setting volume for node {} to {} (cubic: {})", node_id, volume, cubic_volume);
+
+        // SPA constants
+        const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002; // 262146
+        const SPA_PARAM_PROPS: u32 = 2;
+        const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008; // 65544
+
+        // Build Props pod with channelVolumes
+        let pod_vec: Vec<u8> = Vec::new();
+        let cursor = Cursor::new(pod_vec);
+
+        let result = PodSerializer::serialize(
+            cursor,
+            &Value::Object(Object {
+                type_: SPA_TYPE_OBJECT_PROPS,
+                id: SPA_PARAM_PROPS,
+                properties: vec![
+                    Property {
+                        key: SPA_PROP_CHANNEL_VOLUMES,
+                        flags: PropertyFlags::empty(),
+                        value: Value::ValueArray(ValueArray::Float(
+                            vec![cubic_volume, cubic_volume], // Stereo
+                        )),
+                    },
+                ],
+            }),
+        );
+
+        match result {
+            Ok((cursor, _size)) => {
+                let pod_data = cursor.into_inner();
+                // Convert raw bytes to Pod reference
+                // Safety: The serialized data is a valid SPA pod
+                let pod = unsafe {
+                    &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod)
+                };
+                proxy.set_param(ParamType::Props, 0, pod);
+                info!("Volume set successfully for node {}", node_id);
+            }
+            Err(e) => {
+                warn!("Failed to serialize volume pod: {:?}", e);
+            }
+        }
+    } else {
+        warn!("Node {} not found for volume control", node_id);
     }
 }
 

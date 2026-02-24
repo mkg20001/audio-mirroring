@@ -521,16 +521,29 @@ impl GraphManager {
             res.imp().set_source(id, CandidateType::from_raw(kind));
         }));
 
+        // Connect to source dropdown volume changes
+        source_dd.connect_volume_changed(glib::clone!(@weak res => move |_dropdown, node_id, volume| {
+            res.set_volume(node_id, volume as f32);
+        }));
+
         // Connect to target dropdown selection
         let target_dd = main.target_dd();
         target_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
             res.imp().add_target(id);
         }));
 
+        // Connect to target dropdown volume changes
+        target_dd.connect_volume_changed(glib::clone!(@weak res => move |_dropdown, node_id, volume| {
+            res.set_volume(node_id, volume as f32);
+        }));
+
         // Connect to dynamically added target dropdowns
         main.connect_target_dropdown_added(glib::clone!(@weak res => move |_main_view, dropdown| {
             dropdown.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
                 res.imp().add_target(id);
+            }));
+            dropdown.connect_volume_changed(glib::clone!(@weak res => move |_dropdown, node_id, volume| {
+                res.set_volume(node_id, volume as f32);
             }));
         }));
 
@@ -548,5 +561,12 @@ impl GraphManager {
 
     pub fn add_target(&self, id: u32) {
         self.imp().add_target(id);
+    }
+
+    pub fn set_volume(&self, node_id: u32, volume: f32) {
+        let sender = self.imp().pw_sender.get().expect("pw_sender should be set");
+        sender
+            .send(crate::GtkMessage::SetVolume { node_id, volume })
+            .expect("Failed to send volume message");
     }
 }

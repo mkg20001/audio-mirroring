@@ -95,6 +95,9 @@ mod imp {
                     Signal::builder("remove-requested")
                         .param_types([u32::static_type()])
                         .build(),
+                    Signal::builder("volume-changed")
+                        .param_types([u32::static_type(), f64::static_type()])
+                        .build(),
                 ]
             });
             SIGNALS.as_ref()
@@ -144,6 +147,14 @@ mod imp {
                 .connect_clicked(clone!(@weak self as imp => move |_| {
                     let target_id = imp.confirmed_target_id.get().unwrap_or(0);
                     imp.obj().emit_by_name::<()>("remove-requested", &[&target_id]);
+                }));
+
+            self.volume_slider
+                .connect_value_changed(clone!(@weak self as imp => move |scale| {
+                    if let Some(node_id) = imp.confirmed_target_id.get() {
+                        let volume = scale.value() / 100.0; // Convert 0-100 to 0.0-1.0
+                        imp.obj().emit_by_name::<()>("volume-changed", &[&node_id, &volume]);
+                    }
                 }));
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
@@ -321,6 +332,16 @@ impl Dropdown {
 
     pub fn set_removable(&self, removable: bool) {
         self.imp().remove_btn.set_visible(removable);
+    }
+
+    pub fn connect_volume_changed<F: Fn(&Self, u32, f64) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "volume-changed",
+            false,
+            glib::closure_local!(move |dropdown: &Dropdown, node_id: u32, volume: f64| {
+                f(dropdown, node_id, volume);
+            }),
+        )
     }
 
     pub fn update_candidates(&self, c: Vec<CandidateData>) {
