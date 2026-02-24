@@ -81,6 +81,14 @@ mod imp {
 
             self.setup_actions();
         }
+
+        fn shutdown(&self) {
+            // Cleanup all active links before shutting down
+            if let Some(graph_manager) = self.graph_manager.get() {
+                graph_manager.cleanup();
+            }
+            self.parent_shutdown();
+        }
     }
     impl GtkApplicationImpl for Application {}
     impl AdwApplicationImpl for Application {}

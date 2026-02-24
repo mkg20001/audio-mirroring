@@ -473,10 +473,26 @@ mod imp {
             }
             self.active_links.borrow_mut().clear();
 
+            // Also clear all targets since we're stopping mirroring
+            self.active_targets.borrow_mut().clear();
+
             self.selected_source_id.set(None);
             self.selected_source_kind.set(None);
-            log::info!("Source cleared, removed {} links", link_count);
+            log::info!("Source cleared, removed {} links, cleared all targets", link_count);
             self.update_status();
+        }
+
+        pub fn cleanup(&self) {
+            log::info!("Cleaning up - removing all links");
+            // Remove all active links
+            let links = self.active_links.borrow().clone();
+            for (port_from, port_to) in links {
+                self.toggle_link(port_from, port_to);
+            }
+            self.active_links.borrow_mut().clear();
+            self.active_targets.borrow_mut().clear();
+            self.selected_source_id.set(None);
+            self.selected_source_kind.set(None);
         }
 
         fn update_status(&self) {
@@ -665,5 +681,9 @@ impl GraphManager {
 
     pub fn get_volume(&self, node_id: u32) {
         self.imp().get_volume(node_id);
+    }
+
+    pub fn cleanup(&self) {
+        self.imp().cleanup();
     }
 }
