@@ -56,6 +56,10 @@ mod imp {
         #[template_child]
         pub(super) use_mode: TemplateChild<gtk::Box>,
         #[template_child]
+        pub(super) selected_icon: TemplateChild<gtk::Image>,
+        #[template_child]
+        pub(super) selected_label: TemplateChild<gtk::Label>,
+        #[template_child]
         pub(super) edit_btn: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) volume_slider: TemplateChild<gtk::Scale>,
@@ -103,16 +107,29 @@ mod imp {
 
             self.confirm_btn
                 .connect_clicked(clone!(@weak self as imp => move |_| {
-                    imp.select_mode.hide();
-                    imp.use_mode.show();
-
-                    // Emit signal with selected candidate info
+                    // Update selected label and icon before switching modes
                     if let Some(selected) = imp.obj().selected_candidate() {
                         let id = selected.id();
+                        let kind = selected.kind();
+                        let label = selected.label();
+
+                        imp.selected_label.set_text(&label);
+                        imp.selected_label.set_tooltip_text(Some(&label));
+
+                        let icon_name = match kind {
+                            CandidateType::Application => "application-x-executable-symbolic",
+                            CandidateType::Device => "audio-card-symbolic",
+                        };
+                        imp.selected_icon.set_icon_name(Some(icon_name));
+
                         imp.confirmed_target_id.set(Some(id));
+
+                        imp.select_mode.hide();
+                        imp.use_mode.show();
+
                         imp.obj().emit_by_name::<()>(
                             "selection-confirmed",
-                            &[&id, &selected.kind().as_raw()],
+                            &[&id, &kind.as_raw()],
                         );
                     }
                 }));

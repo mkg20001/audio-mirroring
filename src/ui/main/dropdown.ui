@@ -52,17 +52,29 @@
                 <property name="orientation">horizontal</property>
                 <property name="hexpand">yes</property>
                 <property name="halign">center</property>
+                <property name="spacing">8</property>
+                <child>
+                    <object class="GtkImage" id="selected_icon">
+                        <property name="icon-name">audio-card-symbolic</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkLabel" id="selected_label">
+                        <property name="label">No selection</property>
+                        <property name="ellipsize">end</property>
+                        <property name="max-width-chars">20</property>
+                    </object>
+                </child>
                 <child>
                     <object class="GtkButton" id="edit_btn">
                         <property name="tooltip-text">Edit</property>
                         <style>
                             <class name="circular"/>
+                            <class name="flat"/>
                         </style>
                         <child>
                             <object class="GtkImage">
-                                <!-- Use a named icon from the system theme -->
-                                <property name="icon-name">document-edit</property>
-                                <property name="icon-size">button</property>
+                                <property name="icon-name">document-edit-symbolic</property>
                             </object>
                         </child>
                     </object>
