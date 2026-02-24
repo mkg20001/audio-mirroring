@@ -547,65 +547,34 @@ fn toggle_link(
     }
 }
 
-fn set_volume(node_id: u32, volume: f32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
-    use pipewire::spa::pod::serialize::PodSerializer;
-    use pipewire::spa::pod::{Object, Property, PropertyFlags, Value, ValueArray};
-    use std::io::Cursor;
+fn set_volume(node_id: u32, volume: f32, _proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+    // Clamp volume between 0.0 and 1.0
+    let volume = volume.clamp(0.0, 1.0);
 
-    let proxies = proxies.borrow();
-    if let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) {
-        // Clamp volume between 0.0 and 1.0
-        let volume = volume.clamp(0.0, 1.0);
+    info!("Setting volume for node {} to {}", node_id, volume);
 
-        // Convert linear volume to cubic (perceptual) scale for better UX
-        let cubic_volume = volume * volume * volume;
+    // Use wpctl to set volume - this is the most reliable way for device nodes
+    // wpctl expects volume as a percentage (0.0 to 1.0) or percentage string
+    let volume_str = format!("{:.2}", volume);
 
-        info!("Setting volume for node {} to {} (cubic: {})", node_id, volume, cubic_volume);
-
-        // SPA constants
-        const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002; // 262146
-        const SPA_PARAM_PROPS: u32 = 2;
-        const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008; // 65544
-
-        // Build Props pod with channelVolumes
-        let pod_vec: Vec<u8> = Vec::new();
-        let cursor = Cursor::new(pod_vec);
-
-        let result = PodSerializer::serialize(
-            cursor,
-            &Value::Object(Object {
-                type_: SPA_TYPE_OBJECT_PROPS,
-                id: SPA_PARAM_PROPS,
-                properties: vec![
-                    Property {
-                        key: SPA_PROP_CHANNEL_VOLUMES,
-                        flags: PropertyFlags::empty(),
-                        value: Value::ValueArray(ValueArray::Float(
-                            vec![cubic_volume, cubic_volume], // Stereo
-                        )),
-                    },
-                ],
-            }),
-        );
-
-        match result {
-            Ok((cursor, _size)) => {
-                let pod_data = cursor.into_inner();
-                // Convert raw bytes to Pod reference
-                // Safety: The serialized data is a valid SPA pod
-                let pod = unsafe {
-                    &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod)
-                };
-                proxy.set_param(ParamType::Props, 0, pod);
-                info!("Volume set successfully for node {}", node_id);
+    std::thread::spawn(move || {
+        match std::process::Command::new("wpctl")
+            .args(["set-volume", &node_id.to_string(), &volume_str])
+            .output()
+        {
+            Ok(output) => {
+                if output.status.success() {
+                    info!("Volume set successfully for node {} via wpctl", node_id);
+                } else {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    warn!("wpctl failed for node {}: {}", node_id, stderr);
+                }
             }
             Err(e) => {
-                warn!("Failed to serialize volume pod: {:?}", e);
+                warn!("Failed to run wpctl for node {}: {}", node_id, e);
             }
         }
-    } else {
-        warn!("Node {} not found for volume control", node_id);
-    }
+    });
 }
 
 fn get_link_media_type(link_info: &LinkInfoRef) -> MediaType {
