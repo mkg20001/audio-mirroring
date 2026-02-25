@@ -11,11 +11,14 @@
                 <child>
                     <object class="GtkDropDown" id="dropdown">
                         <property name="width-request">256</property>
+                        <property name="hexpand">false</property>
                     </object>
                 </child>
                 <child>
                     <object class="GtkButton" id="confirm_btn">
                         <property name="tooltip-text">Confirm</property>
+                        <property name="hexpand">false</property>
+                        <property name="vexpand">false</property>
                         <style>
                             <class name="circular"/>
                         </style>
@@ -31,6 +34,8 @@
                     <object class="GtkButton" id="remove_btn">
                         <property name="tooltip-text">Remove</property>
                         <property name="visible">false</property>
+                        <property name="hexpand">false</property>
+                        <property name="vexpand">false</property>
                         <style>
                             <class name="circular"/>
                             <class name="destructive-action"/>
@@ -74,6 +79,8 @@
                 <child>
                     <object class="GtkButton" id="edit_btn">
                         <property name="tooltip-text">Edit</property>
+                        <property name="hexpand">false</property>
+                        <property name="vexpand">false</property>
                         <style>
                             <class name="circular"/>
                             <class name="flat"/>
