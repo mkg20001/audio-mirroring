@@ -35,7 +35,7 @@
     </g>
 
     <!-- Right receiver -->
-    <g transform="translate(90, 56) scale(0.5)">
+    <g transform="translate(94, 56) scale(0.5)">
       <g fill="#ffffff">
         <rect x="0" y="8" width="8" height="16" rx="1"/>
         <path d="M8 8 L18 0 L18 32 L8 24 Z"/>
