@@ -9,7 +9,7 @@
   outputs = { self, nixpkgs, flake-utils }:
     {
       overlays.default = final: prev: {
-        audiomirroring = final.callPackage ./package.nix { };
+        audio-mirroring = final.callPackage ./package.nix { };
       };
     }
     // flake-utils.lib.eachDefaultSystem (system:
@@ -18,12 +18,12 @@
       in
       {
         packages = {
-          audiomirroring = pkgs.callPackage ./package.nix { };
-          default = self.packages.${system}.audiomirroring;
+          audio-mirroring = pkgs.callPackage ./package.nix { };
+          default = self.packages.${system}.audio-mirroring;
         };
 
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.audiomirroring ];
+          inputsFrom = [ self.packages.${system}.audio-mirroring ];
         };
       }
     );

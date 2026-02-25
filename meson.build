@@ -1,5 +1,5 @@
 project(
-  'audiomirroring',
+  'audio-mirroring',
   'rust',
   version: '0.5.1',
   license: 'GPL-3.0',

@@ -1,5 +1,5 @@
 [package]
-name = "audiomirroring"
+name = "audio-mirroring"
 version = "0.0.0"
 authors = ["Maciej Krüger <mkg20001@gmail.com>", "Tom Wagner <tom.a.wagner@protonmail.com>"]
 edition = "2024"
@@ -8,7 +8,7 @@ license = "GPL-3.0-only"
 description = "Audio Mirroring for Linux"
 repository = "https://github.com/mkg20001/audio-mirroring"
 readme = "README.md"
-keywords = ["pipewire", "gtk", "audiomirroring", "gui", "utility"]
+keywords = ["pipewire", "gtk", "audio-mirroring", "gui", "utility"]
 categories = ["gui", "multimedia"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
