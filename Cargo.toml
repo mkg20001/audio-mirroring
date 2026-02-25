@@ -1,6 +1,6 @@
 [package]
 name = "audio-mirroring"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Maciej Krüger <mkg20001@gmail.com>", "Tom Wagner <tom.a.wagner@protonmail.com>"]
 edition = "2024"
 rust-version = "1.85.0"
