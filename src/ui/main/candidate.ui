@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
     <requires lib="gtk" version="4.0"/>
-    <template class="AudioSharingCandidate" parent="GtkWidget">
+    <template class="AudioMirroringCandidate" parent="GtkWidget">
         <property name="hexpand">true</property>
         <child>
             <object class="GtkImage" id="icon">

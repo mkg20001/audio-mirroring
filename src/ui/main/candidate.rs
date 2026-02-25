@@ -102,7 +102,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for Candidate {
-        const NAME: &'static str = "AudioSharingCandidate";
+        const NAME: &'static str = "AudioMirroringCandidate";
         type Type = super::Candidate;
         type ParentType = gtk::Widget;
 

@@ -26,7 +26,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for Window {
-        const NAME: &'static str = "AudioSharingWindow";
+        const NAME: &'static str = "AudioMirroringWindow";
         type Type = super::Window;
         type ParentType = adw::ApplicationWindow;
 

@@ -96,7 +96,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for MainView {
-        const NAME: &'static str = "AudioSharingMainView";
+        const NAME: &'static str = "AudioMirroringMainView";
         type Type = super::MainView;
         type ParentType = gtk::Widget;
 

@@ -44,7 +44,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for CandidateData {
-        const NAME: &'static str = "AudioSharingCandidateData";
+        const NAME: &'static str = "AudioMirroringCandidateData";
         type Type = super::CandidateData;
         type ParentType = glib::Object;
     }

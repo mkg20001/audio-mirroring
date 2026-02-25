@@ -68,7 +68,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for Dropdown {
-        const NAME: &'static str = "AudioSharingDropdown";
+        const NAME: &'static str = "AudioMirroringDropdown";
         type Type = super::Dropdown;
         type ParentType = gtk::Widget;
 

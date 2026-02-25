@@ -62,7 +62,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for GraphManager {
-        const NAME: &'static str = "HelvumGraphManager";
+        const NAME: &'static str = "AudioMirroringGraphManager";
         type Type = super::GraphManager;
         type ParentType = glib::Object;
     }

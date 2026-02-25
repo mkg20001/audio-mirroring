@@ -63,7 +63,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for Node {
-        const NAME: &'static str = "AudioSharingNode";
+        const NAME: &'static str = "AudioMirroringNode";
         type Type = super::Node;
         type ParentType = gtk::Widget;
 

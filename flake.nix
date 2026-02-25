@@ -1,5 +1,5 @@
 {
-  description = "Audio Sharing for Linux";
+  description = "Audio Mirroring for Linux";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -9,7 +9,7 @@
   outputs = { self, nixpkgs, flake-utils }:
     {
       overlays.default = final: prev: {
-        audiosharing = final.callPackage ./package.nix { };
+        audiomirroring = final.callPackage ./package.nix { };
       };
     }
     // flake-utils.lib.eachDefaultSystem (system:
@@ -18,12 +18,12 @@
       in
       {
         packages = {
-          audiosharing = pkgs.callPackage ./package.nix { };
-          default = self.packages.${system}.audiosharing;
+          audiomirroring = pkgs.callPackage ./package.nix { };
+          default = self.packages.${system}.audiomirroring;
         };
 
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.audiosharing ];
+          inputsFrom = [ self.packages.${system}.audiomirroring ];
         };
       }
     );

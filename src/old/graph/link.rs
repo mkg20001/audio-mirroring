@@ -46,7 +46,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for Link {
-        const NAME: &'static str = "AudioSharingLink";
+        const NAME: &'static str = "AudioMirroringLink";
         type Type = super::Link;
         type ParentType = glib::Object;
     }

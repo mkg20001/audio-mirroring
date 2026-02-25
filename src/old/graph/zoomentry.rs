@@ -48,7 +48,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for ZoomEntry {
-        const NAME: &'static str = "AudioSharingZoomEntry";
+        const NAME: &'static str = "AudioMirroringZoomEntry";
         type Type = super::ZoomEntry;
         type ParentType = gtk::Box;
 

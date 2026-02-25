@@ -17,7 +17,7 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "audio-sharing";
+  name = "audio-mirroring";
 
   src = ./.;
 
@@ -45,11 +45,11 @@ stdenv.mkDerivation rec {
   ];
 
   meta = with lib; {
-    description = "Audio Sharing for Linux";
-    homepage = "https://github.com/mkg20001/audio-sharing";
+    description = "Audio Mirroring for Linux";
+    homepage = "https://github.com/mkg20001/audio-mirroring";
     license = licenses.gpl3Only;
     maintainers = with maintainers; [ mkg20001 ];
     platforms = platforms.linux;
-    mainProgram = "audiosharing";
+    mainProgram = "audiomirroring";
   };
 }

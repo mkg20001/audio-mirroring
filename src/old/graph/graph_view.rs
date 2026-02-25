@@ -118,7 +118,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for GraphView {
-        const NAME: &'static str = "AudioSharingGraphView";
+        const NAME: &'static str = "AudioMirroringGraphView";
         type Type = super::GraphView;
         type ParentType = gtk::Widget;
         type Interfaces = (gtk::Scrollable,);

@@ -24,7 +24,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for PortHandle {
-        const NAME: &'static str = "AudioSharingPortHandle";
+        const NAME: &'static str = "AudioMirroringPortHandle";
         type Type = super::PortHandle;
         type ParentType = gtk::Widget;
 

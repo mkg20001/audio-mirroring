@@ -27,7 +27,7 @@ use pipewire::channel::Sender;
 use crate::{graph_manager::GraphManager, ui, GtkMessage, PipewireMessage};
 
 static STYLE: &str = include_str!("style.css");
-static APP_ID: &str = "io.mkg20001.AudioSharing";
+static APP_ID: &str = "io.mkg20001.AudioMirroring";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
 static AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 
@@ -48,7 +48,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for Application {
-        const NAME: &'static str = "AudioSharingApplication";
+        const NAME: &'static str = "AudioMirroringApplication";
         type Type = super::Application;
         type ParentType = adw::Application;
     }
@@ -121,12 +121,12 @@ mod imp {
             let about_window = adw::AboutWindow::builder()
                 .transient_for(&window)
                 .application_icon(APP_ID)
-                .application_name("AudioSharing")
+                .application_name("AudioMirroring")
                 .developer_name("Maciej Krüger")
                 .developers(authors)
                 .version(VERSION)
-                .website("https://github.com/mkg20001/audio-sharing")
-                .issue_url("https://github.com/mkg20001/audio-sharing/issues")
+                .website("https://github.com/mkg20001/audio-mirroring")
+                .issue_url("https://github.com/mkg20001/audio-mirroring/issues")
                 .license_type(gtk::License::Gpl30Only)
                 .build();
 

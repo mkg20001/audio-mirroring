@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
     <requires lib="gtk" version="4.0"/>
-    <template class="AudioSharingDropdown" parent="GtkWidget">
+    <template class="AudioMirroringDropdown" parent="GtkWidget">
         <child>
             <object class="GtkBox" id="select_mode">
                 <property name="orientation">horizontal</property>

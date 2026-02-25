@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
     <requires lib="gtk" version="4.0"/>
-    <template class="AudioSharingMainView" parent="GtkWidget">
+    <template class="AudioMirroringMainView" parent="GtkWidget">
         <style>
             <class name="card"></class>
         </style>
@@ -20,7 +20,7 @@
                     </object>
                 </child>
                 <child>
-                    <object class="AudioSharingDropdown" id="source_dd">
+                    <object class="AudioMirroringDropdown" id="source_dd">
                         <property name="hexpand">true</property>
                     </object>
                 </child>
@@ -64,7 +64,7 @@
                         <property name="spacing">4</property>
                         <property name="vexpand">true</property>
                         <child>
-                            <object class="AudioSharingDropdown" id="target_dd">
+                            <object class="AudioMirroringDropdown" id="target_dd">
                                 <property name="hexpand">true</property>
                             </object>
                         </child>

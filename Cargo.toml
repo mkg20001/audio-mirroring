@@ -1,14 +1,14 @@
 [package]
-name = "audiosharing"
+name = "audiomirroring"
 version = "0.0.0"
 authors = ["Maciej Krüger <mkg20001@gmail.com>", "Tom Wagner <tom.a.wagner@protonmail.com>"]
 edition = "2024"
 rust-version = "1.85.0"
 license = "GPL-3.0-only"
-description = "Audio Sharing for Linux"
-repository = "https://github.com/mkg20001/audio-sharing"
+description = "Audio Mirroring for Linux"
+repository = "https://github.com/mkg20001/audio-mirroring"
 readme = "README.md"
-keywords = ["pipewire", "gtk", "audiosharing", "gui", "utility"]
+keywords = ["pipewire", "gtk", "audiomirroring", "gui", "utility"]
 categories = ["gui", "multimedia"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

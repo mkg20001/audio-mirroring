@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
     <requires lib="gtk" version="4.0"/>
-    <template class="AudioSharingPort" parent="GtkWidget">
+    <template class="AudioMirroringPort" parent="GtkWidget">
         <property name="hexpand">true</property>
         <child>
             <object class="GtkLabel" id="label">
@@ -12,7 +12,7 @@
             </object>
         </child>
         <child>
-            <object class="AudioSharingPortHandle" id="handle"></object>
+            <object class="AudioMirroringPortHandle" id="handle"></object>
         </child>
     </template>
 </interface>

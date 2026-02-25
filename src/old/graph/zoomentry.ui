@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="AudioSharingZoomEntry" parent="GtkBox">
+  <template class="AudioMirroringZoomEntry" parent="GtkBox">
     <property name="spacing">12</property>
     <child>
       <object class="GtkEntry" id="entry">

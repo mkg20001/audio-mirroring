@@ -4,23 +4,23 @@
     <id>@app-id@</id>
     <metadata_license>CC-BY-SA-4.0</metadata_license>
     <project_license>GPL-3.0-only</project_license>
-    <name>AudioSharing</name>
-    <summary>Patchbay for PipeWire</summary>
+    <name>AudioMirroring</name>
+    <summary>Audio Mirroring for Linux</summary>
     <description>
         <p>
-            AudioSharing is a graphical patchbay for PipeWire.
-            It allows creating and removing connections between applications and/or devices to reroute
-            flow of audio, video and MIDI data to where it is needed.
+            AudioMirroring allows mirroring audio sources to multiple output devices.
+            It provides a simple interface to route audio from applications or devices
+            to one or more speakers or audio outputs.
         </p>
     </description>
     <screenshots>
         <screenshot type="default">
-            <image>https://gitlab.freedesktop.org/pipewire/audiosharing/-/raw/main/docs/screenshot.png</image>
+            <image>https://github.com/mkg20001/audio-mirroring/raw/main/docs/screenshot.png</image>
         </screenshot>
     </screenshots>
     <launchable type="desktop-id">@app-id@.desktop</launchable>
-    <url type="homepage">https://gitlab.freedesktop.org/pipewire/audiosharing</url>
-    <url type="bugtracker">https://gitlab.freedesktop.org/pipewire/audiosharing/-/issues</url>
+    <url type="homepage">https://github.com/mkg20001/audio-mirroring</url>
+    <url type="bugtracker">https://github.com/mkg20001/audio-mirroring/issues</url>
     <content_rating type="oars-1.0" />
     <releases>
         <release version="0.5.1" date="2023-09-28" />
