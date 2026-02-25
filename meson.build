@@ -8,7 +8,7 @@ project(
 
 gnome = import('gnome')
 
-base_id = 'org.pipewire.AudioSharing'
+base_id = 'io.mkg20001.AudioSharing'
 
 dependency('glib-2.0',     version: '>= 2.66')
 dependency('gtk4',         version: '>= 4.4.0')

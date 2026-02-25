@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=AudioSharing
+GenericName=Patchbay
+Comment=A patchbay for pipewire
+Type=Application
+Exec=audiosharing
+Terminal=false
+Categories=AudioVideo;Audio;Video;Midi;Settings;GNOME;GTK;
+Icon=@icon@
