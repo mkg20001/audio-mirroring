@@ -12,10 +12,15 @@
     <path d="M10 4 Q12.5 8 10 12"/>
   </g>
 
-  <!-- Small receiver indicators -->
+  <!-- Small receiver indicators with waves -->
   <g fill="#241f31">
-    <circle cx="13" cy="4" r="1.2"/>
-    <circle cx="13.5" cy="8" r="1.2"/>
-    <circle cx="13" cy="12" r="1.2"/>
+    <circle cx="12.5" cy="4" r="1"/>
+    <circle cx="13" cy="8" r="1"/>
+    <circle cx="12.5" cy="12" r="1"/>
+  </g>
+  <g fill="none" stroke="#241f31" stroke-width="0.8" stroke-linecap="round" opacity="0.7">
+    <path d="M14.5 3 Q15.5 4 14.5 5"/>
+    <path d="M15 7 Q16 8 15 9"/>
+    <path d="M14.5 11 Q15.5 12 14.5 13"/>
   </g>
 </svg>

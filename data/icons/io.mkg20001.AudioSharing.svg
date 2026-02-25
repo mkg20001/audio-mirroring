@@ -20,24 +20,42 @@
     <path d="M80 36 Q96 64 80 92" opacity="0.5"/>
   </g>
 
-  <!-- Receiver devices (small speakers) -->
-  <g fill="#ffffff" opacity="0.85">
+  <!-- Receiver devices (small speakers with waves) -->
+  <g opacity="0.85">
     <!-- Top right receiver -->
     <g transform="translate(86, 24) scale(0.5)">
-      <rect x="0" y="8" width="8" height="16" rx="1"/>
-      <path d="M8 8 L18 0 L18 32 L8 24 Z"/>
+      <g fill="#ffffff">
+        <rect x="0" y="8" width="8" height="16" rx="1"/>
+        <path d="M8 8 L18 0 L18 32 L8 24 Z"/>
+      </g>
+      <g fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round">
+        <path d="M22 10 Q26 16 22 22" opacity="0.8"/>
+        <path d="M27 6 Q33 16 27 26" opacity="0.5"/>
+      </g>
     </g>
 
     <!-- Right receiver -->
     <g transform="translate(90, 56) scale(0.5)">
-      <rect x="0" y="8" width="8" height="16" rx="1"/>
-      <path d="M8 8 L18 0 L18 32 L8 24 Z"/>
+      <g fill="#ffffff">
+        <rect x="0" y="8" width="8" height="16" rx="1"/>
+        <path d="M8 8 L18 0 L18 32 L8 24 Z"/>
+      </g>
+      <g fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round">
+        <path d="M22 10 Q26 16 22 22" opacity="0.8"/>
+        <path d="M27 6 Q33 16 27 26" opacity="0.5"/>
+      </g>
     </g>
 
     <!-- Bottom right receiver -->
     <g transform="translate(86, 88) scale(0.5)">
-      <rect x="0" y="8" width="8" height="16" rx="1"/>
-      <path d="M8 8 L18 0 L18 32 L8 24 Z"/>
+      <g fill="#ffffff">
+        <rect x="0" y="8" width="8" height="16" rx="1"/>
+        <path d="M8 8 L18 0 L18 32 L8 24 Z"/>
+      </g>
+      <g fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round">
+        <path d="M22 10 Q26 16 22 22" opacity="0.8"/>
+        <path d="M27 6 Q33 16 27 26" opacity="0.5"/>
+      </g>
     </g>
   </g>
 </svg>
