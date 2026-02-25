@@ -344,9 +344,7 @@ impl Dropdown {
     }
 
     pub fn set_removable(&self, removable: bool) {
-        let btn = &self.imp().remove_btn;
-        btn.set_opacity(if removable { 1.0 } else { 0.0 });
-        btn.set_sensitive(removable);
+        self.imp().remove_btn.set_visible(removable);
     }
 
     pub fn confirmed_node_id(&self) -> Option<u32> {

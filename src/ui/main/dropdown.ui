@@ -30,8 +30,7 @@
                 <child>
                     <object class="GtkButton" id="remove_btn">
                         <property name="tooltip-text">Remove</property>
-                        <property name="opacity">0</property>
-                        <property name="sensitive">false</property>
+                        <property name="visible">false</property>
                         <style>
                             <class name="circular"/>
                             <class name="destructive-action"/>
