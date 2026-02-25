@@ -8,6 +8,7 @@
         <child>
             <object class="GtkBox">
                 <property name="orientation">vertical</property>
+                <property name="spacing">12</property>
                 <child>
                     <object class="GtkLabel" id="source_device_label">
                         <property name="single-line-mode">True</property>
@@ -26,6 +27,7 @@
                 </child>
                 <child>
                     <object class="GtkSeparator">
+                        <property name="margin-top">4</property>
                     </object>
                 </child>
                 <child>
@@ -61,7 +63,7 @@
                 <child>
                     <object class="GtkBox" id="targets_container">
                         <property name="orientation">vertical</property>
-                        <property name="spacing">4</property>
+                        <property name="spacing">12</property>
                         <property name="vexpand">true</property>
                         <child>
                             <object class="AudioMirroringDropdown" id="target_dd">
@@ -71,26 +73,32 @@
                     </object>
                 </child>
                 <child>
-                    <object class="GtkSeparator">
+                    <object class="GtkBox">
+                        <property name="orientation">vertical</property>
                         <property name="valign">end</property>
-                    </object>
-                </child>
-                <child>
-                    <object class="GtkBox" id="status_bar">
-                        <property name="orientation">horizontal</property>
-                        <property name="halign">center</property>
-                        <property name="spacing">8</property>
+                        <property name="spacing">0</property>
                         <child>
-                            <object class="GtkImage" id="status_icon">
-                                <property name="icon-name">media-playback-stop-symbolic</property>
+                            <object class="GtkSeparator">
                             </object>
                         </child>
                         <child>
-                            <object class="GtkLabel" id="status_label">
-                                <property name="label">Not mirroring</property>
-                                <style>
-                                    <class name="dim-label"/>
-                                </style>
+                            <object class="GtkBox" id="status_bar">
+                                <property name="orientation">horizontal</property>
+                                <property name="halign">center</property>
+                                <property name="spacing">8</property>
+                                <child>
+                                    <object class="GtkImage" id="status_icon">
+                                        <property name="icon-name">media-playback-stop-symbolic</property>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="GtkLabel" id="status_label">
+                                        <property name="label">Not mirroring</property>
+                                        <style>
+                                            <class name="dim-label"/>
+                                        </style>
+                                    </object>
+                                </child>
                             </object>
                         </child>
                     </object>
