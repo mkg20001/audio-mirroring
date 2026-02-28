@@ -11,8 +11,8 @@
     </section>
   </menu>
   <template class="AudioMirroringWindow" parent="AdwApplicationWindow">
-    <property name="default-width">448</property>
-    <property name="default-height">448</property>
+    <property name="default-width">540</property>
+    <property name="default-height">540</property>
     <child>
       <object class="AdwToolbarView">
         <child type="top">
