@@ -23,7 +23,7 @@ use log::{debug, error, info, warn};
 use pipewire::{
     context::Context,
     core::{Core, PW_ID_CORE},
-    device::{Device, DeviceInfoRef, DeviceListener},
+    device::{Device, DeviceListener},
     keys,
     link::{Link, LinkChangeMask, LinkInfoRef, LinkListener, LinkState},
     main_loop::MainLoop,
@@ -40,7 +40,7 @@ use pipewire::{
 };
 
 use crate::{GtkMessage, MediaType, NodeType, PipewireMessage};
-use state::{Item, RouteInfo, State};
+use state::{Item, NodeDeviceInfo, RouteInfo, State};
 
 enum ProxyItem {
     Node {
@@ -285,16 +285,27 @@ fn handle_node(
         })
         .or_else(|| props.get("media.class").and_then(media_class));
 
-    // Extract device.id if present (for device nodes like sinks/sources)
-    let device_id = props
+    // Extract device.id and card.profile.device if present (for device nodes like sinks/sources)
+    let device_info = props
         .get("device.id")
-        .and_then(|id| id.parse::<u32>().ok());
+        .and_then(|id| id.parse::<u32>().ok())
+        .and_then(|device_id| {
+            // card.profile.device identifies which route on the device applies to this node
+            let card_profile_device = props
+                .get("card.profile.device")
+                .and_then(|v| v.parse::<i32>().ok())
+                .unwrap_or(0); // Default to 0 if not present
+            Some(NodeDeviceInfo {
+                device_id,
+                card_profile_device,
+            })
+        });
 
     {
         let mut state = state.borrow_mut();
-        state.insert(node.id, Item::Node { device_id });
-        if let Some(dev_id) = device_id {
-            state.set_node_device(node.id, dev_id);
+        state.insert(node.id, Item::Node { device_info: device_info.clone() });
+        if let Some(info) = device_info {
+            state.set_node_device_info(node.id, info);
         }
     }
 
@@ -626,6 +637,7 @@ fn handle_device_route(
             debug!("Device {} route: index={}, device={}", device_id, index, device);
             state.borrow_mut().set_device_route(
                 device_id,
+                device, // route_device is the key to match with card.profile.device
                 RouteInfo {
                     route_index: index,
                     route_device: device,
@@ -759,7 +771,7 @@ fn handle_node_props(
     const SPA_PROP_VOLUME: u32 = 0x10003;
     const SPA_PROP_MUTE: u32 = 0x10004;
     const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
-    const SPA_PARAM_ROUTE_PROPS: u32 = 5;
+    const SPA_PARAM_ROUTE_PROPS: u32 = 10;
 
     // Handle both Props and Route params
     if let Value::Object(obj) = value {
@@ -919,20 +931,20 @@ fn set_device_volume(proxy: &Device, route_info: &RouteInfo, cubic_volume: f32) 
     use std::io::Cursor;
 
     // SPA constants for Route param
-    const SPA_TYPE_OBJECT_PARAM_ROUTE: u32 = 0x40004;
-    const SPA_PARAM_ROUTE: u32 = 6;
+    const SPA_TYPE_OBJECT_PARAM_ROUTE: u32 = 0x40009; // 262153
+    const SPA_PARAM_ROUTE: u32 = 13;
     const SPA_PARAM_ROUTE_INDEX: u32 = 1;
     const SPA_PARAM_ROUTE_DEVICE: u32 = 3;
-    const SPA_PARAM_ROUTE_PROPS: u32 = 5;
-    const SPA_PARAM_ROUTE_SAVE: u32 = 7;
+    const SPA_PARAM_ROUTE_PROPS: u32 = 10;
+    const SPA_PARAM_ROUTE_SAVE: u32 = 13;
 
-    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
-    const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
+    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002; // 262146
+    const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008; // 65544
 
     // Build the props sub-object
     let props_object = Object {
         type_: SPA_TYPE_OBJECT_PROPS,
-        id: 0, // Nested object doesn't need id
+        id: SPA_PARAM_ROUTE, // Inner Props uses Route param id
         properties: vec![Property {
             key: SPA_PROP_CHANNEL_VOLUMES,
             flags: PropertyFlags::empty(),
@@ -1062,20 +1074,20 @@ fn set_device_mute(proxy: &Device, route_info: &RouteInfo, muted: bool) {
     use std::io::Cursor;
 
     // SPA constants for Route param
-    const SPA_TYPE_OBJECT_PARAM_ROUTE: u32 = 0x40004;
-    const SPA_PARAM_ROUTE: u32 = 6;
+    const SPA_TYPE_OBJECT_PARAM_ROUTE: u32 = 0x40009; // 262153
+    const SPA_PARAM_ROUTE: u32 = 13;
     const SPA_PARAM_ROUTE_INDEX: u32 = 1;
     const SPA_PARAM_ROUTE_DEVICE: u32 = 3;
-    const SPA_PARAM_ROUTE_PROPS: u32 = 5;
-    const SPA_PARAM_ROUTE_SAVE: u32 = 7;
+    const SPA_PARAM_ROUTE_PROPS: u32 = 10;
+    const SPA_PARAM_ROUTE_SAVE: u32 = 13;
 
-    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
-    const SPA_PROP_MUTE: u32 = 0x10004;
+    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002; // 262146
+    const SPA_PROP_MUTE: u32 = 0x10004; // 65540
 
     // Build the props sub-object
     let props_object = Object {
         type_: SPA_TYPE_OBJECT_PROPS,
-        id: 0, // Nested object doesn't need id
+        id: SPA_PARAM_ROUTE, // Inner Props uses Route param id
         properties: vec![Property {
             key: SPA_PROP_MUTE,
             flags: PropertyFlags::empty(),

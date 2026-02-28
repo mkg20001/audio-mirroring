@@ -23,12 +23,20 @@ pub(super) struct RouteInfo {
     pub route_device: i32,
 }
 
+/// Info about a node's device association
+#[derive(Clone, Debug)]
+pub(super) struct NodeDeviceInfo {
+    pub device_id: u32,
+    /// The card.profile.device property - identifies which route on the device applies to this node
+    pub card_profile_device: i32,
+}
+
 /// Any pipewire item we need to keep track of.
 /// These will be saved in the `State` struct associated with their id.
 pub(super) enum Item {
     Node {
-        /// The device.id if this node is associated with a device
-        device_id: Option<u32>,
+        /// Device association info if this node is associated with a device
+        device_info: Option<NodeDeviceInfo>,
     },
     Port {
         // Save the id of the node this is on so we can remove the port from it
@@ -51,10 +59,11 @@ pub(super) struct State {
     items: HashMap<u32, Item>,
     /// Map `(output port id, input port id)` tuples to the id of the link that connects them.
     links: HashMap<(u32, u32), u32>,
-    /// Map device ids to their current route info (used for volume control)
-    device_routes: HashMap<u32, RouteInfo>,
-    /// Map node ids to their device ids (for quick lookup)
-    node_devices: HashMap<u32, u32>,
+    /// Map (device_id, route_device) to route info (used for volume control)
+    /// Each device can have multiple routes, identified by route_device
+    device_routes: HashMap<(u32, i32), RouteInfo>,
+    /// Map node ids to their device info (for quick lookup)
+    node_device_info: HashMap<u32, NodeDeviceInfo>,
 }
 
 impl State {
@@ -94,10 +103,11 @@ impl State {
                 self.links.remove(&(*port_from, *port_to));
             }
             Some(Item::Node { .. }) => {
-                self.node_devices.remove(&id);
+                self.node_device_info.remove(&id);
             }
             Some(Item::Device) => {
-                self.device_routes.remove(&id);
+                // Remove all routes for this device
+                self.device_routes.retain(|(dev_id, _), _| *dev_id != id);
             }
             _ => {}
         }
@@ -115,33 +125,28 @@ impl State {
     }
 
     /// Set the device association for a node
-    pub fn set_node_device(&mut self, node_id: u32, device_id: u32) {
-        self.node_devices.insert(node_id, device_id);
+    pub fn set_node_device_info(&mut self, node_id: u32, info: NodeDeviceInfo) {
+        self.node_device_info.insert(node_id, info.clone());
         // Update the Item if it exists
-        if let Some(Item::Node { device_id: dev_id }) = self.items.get_mut(&node_id) {
-            *dev_id = Some(device_id);
+        if let Some(Item::Node { device_info }) = self.items.get_mut(&node_id) {
+            *device_info = Some(info);
         }
     }
 
-    /// Get the device id for a node
-    pub fn get_node_device(&self, node_id: u32) -> Option<u32> {
-        self.node_devices.get(&node_id).copied()
+    /// Get the device info for a node
+    pub fn get_node_device_info(&self, node_id: u32) -> Option<&NodeDeviceInfo> {
+        self.node_device_info.get(&node_id)
     }
 
-    /// Set the route info for a device
-    pub fn set_device_route(&mut self, device_id: u32, route_info: RouteInfo) {
-        self.device_routes.insert(device_id, route_info);
+    /// Set the route info for a device route
+    pub fn set_device_route(&mut self, device_id: u32, route_device: i32, route_info: RouteInfo) {
+        self.device_routes.insert((device_id, route_device), route_info);
     }
 
-    /// Get the route info for a device
-    pub fn get_device_route(&self, device_id: u32) -> Option<&RouteInfo> {
-        self.device_routes.get(&device_id)
-    }
-
-    /// Get route info for a node (via its device)
+    /// Get route info for a node (via its device and card.profile.device)
     pub fn get_node_route_info(&self, node_id: u32) -> Option<(u32, &RouteInfo)> {
-        let device_id = self.node_devices.get(&node_id)?;
-        let route_info = self.device_routes.get(device_id)?;
-        Some((*device_id, route_info))
+        let node_info = self.node_device_info.get(&node_id)?;
+        let route_info = self.device_routes.get(&(node_info.device_id, node_info.card_profile_device))?;
+        Some((node_info.device_id, route_info))
     }
 }
