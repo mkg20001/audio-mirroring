@@ -16,10 +16,20 @@
 
 use std::collections::HashMap;
 
+/// Route information for a device
+#[derive(Clone, Debug)]
+pub(super) struct RouteInfo {
+    pub route_index: i32,
+    pub route_device: i32,
+}
+
 /// Any pipewire item we need to keep track of.
 /// These will be saved in the `State` struct associated with their id.
 pub(super) enum Item {
-    Node,
+    Node {
+        /// The device.id if this node is associated with a device
+        device_id: Option<u32>,
+    },
     Port {
         // Save the id of the node this is on so we can remove the port from it
         // when it is deleted.
@@ -29,6 +39,7 @@ pub(super) enum Item {
         port_from: u32,
         port_to: u32,
     },
+    Device,
 }
 
 /// This struct keeps track of any relevant items and stores them under their IDs.
@@ -40,6 +51,10 @@ pub(super) struct State {
     items: HashMap<u32, Item>,
     /// Map `(output port id, input port id)` tuples to the id of the link that connects them.
     links: HashMap<(u32, u32), u32>,
+    /// Map device ids to their current route info (used for volume control)
+    device_routes: HashMap<u32, RouteInfo>,
+    /// Map node ids to their device ids (for quick lookup)
+    node_devices: HashMap<u32, u32>,
 }
 
 impl State {
@@ -74,8 +89,17 @@ impl State {
     pub fn remove(&mut self, id: u32) -> Option<Item> {
         let removed = self.items.remove(&id);
 
-        if let Some(Item::Link { port_from, port_to }) = removed {
-            self.links.remove(&(port_from, port_to));
+        match &removed {
+            Some(Item::Link { port_from, port_to }) => {
+                self.links.remove(&(*port_from, *port_to));
+            }
+            Some(Item::Node { .. }) => {
+                self.node_devices.remove(&id);
+            }
+            Some(Item::Device) => {
+                self.device_routes.remove(&id);
+            }
+            _ => {}
         }
 
         removed
@@ -88,5 +112,36 @@ impl State {
         } else {
             None
         }
+    }
+
+    /// Set the device association for a node
+    pub fn set_node_device(&mut self, node_id: u32, device_id: u32) {
+        self.node_devices.insert(node_id, device_id);
+        // Update the Item if it exists
+        if let Some(Item::Node { device_id: dev_id }) = self.items.get_mut(&node_id) {
+            *dev_id = Some(device_id);
+        }
+    }
+
+    /// Get the device id for a node
+    pub fn get_node_device(&self, node_id: u32) -> Option<u32> {
+        self.node_devices.get(&node_id).copied()
+    }
+
+    /// Set the route info for a device
+    pub fn set_device_route(&mut self, device_id: u32, route_info: RouteInfo) {
+        self.device_routes.insert(device_id, route_info);
+    }
+
+    /// Get the route info for a device
+    pub fn get_device_route(&self, device_id: u32) -> Option<&RouteInfo> {
+        self.device_routes.get(&device_id)
+    }
+
+    /// Get route info for a node (via its device)
+    pub fn get_node_route_info(&self, node_id: u32) -> Option<(u32, &RouteInfo)> {
+        let device_id = self.node_devices.get(&node_id)?;
+        let route_info = self.device_routes.get(device_id)?;
+        Some((*device_id, route_info))
     }
 }

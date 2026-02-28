@@ -23,6 +23,7 @@ use log::{debug, error, info, warn};
 use pipewire::{
     context::Context,
     core::{Core, PW_ID_CORE},
+    device::{Device, DeviceInfoRef, DeviceListener},
     keys,
     link::{Link, LinkChangeMask, LinkInfoRef, LinkListener, LinkState},
     main_loop::MainLoop,
@@ -39,7 +40,7 @@ use pipewire::{
 };
 
 use crate::{GtkMessage, MediaType, NodeType, PipewireMessage};
-use state::{Item, State};
+use state::{Item, RouteInfo, State};
 
 enum ProxyItem {
     Node {
@@ -53,6 +54,10 @@ enum ProxyItem {
     Link {
         _proxy: Link,
         _listener: LinkListener,
+    },
+    Device {
+        proxy: Device,
+        _listener: DeviceListener,
     },
 }
 
@@ -158,9 +163,9 @@ pub(super) fn thread_main(
                 GtkMessage::ToggleLink { port_from, port_to } => toggle_link(port_from, port_to, &core, &registry, &state),
                 GtkMessage::CreateLink { port_from, port_to } => create_link(port_from, port_to, &core, &state),
                 GtkMessage::RemoveLink { port_from, port_to } => remove_link(port_from, port_to, &registry, &state),
-                GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies),
+                GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies, &state),
                 GtkMessage::GetVolume { node_id } => get_volume(node_id, &proxies),
-                GtkMessage::SetMute { node_id, muted } => set_mute(node_id, muted, &proxies),
+                GtkMessage::SetMute { node_id, muted } => set_mute(node_id, muted, &proxies, &state),
                 GtkMessage::Terminate | GtkMessage::Connect(_) => {
                     loop_state.borrow_mut().handle_message(msg);
                     mainloop.quit();
@@ -195,6 +200,7 @@ pub(super) fn thread_main(
                     ObjectType::Node => handle_node(global, &gtk_sender, &registry, &proxies, &state),
                     ObjectType::Port => handle_port(global, &gtk_sender, &registry, &proxies, &state),
                     ObjectType::Link => handle_link(global, &gtk_sender, &registry, &proxies, &state),
+                    ObjectType::Device => handle_device(global, &registry, &proxies, &state),
                     _ => {
                         // Other objects are not interesting to us
                     }
@@ -202,11 +208,23 @@ pub(super) fn thread_main(
             ))
             .global_remove(clone!(@strong gtk_sender, @strong proxies, @strong state => move |id| {
                 if let Some(item) = state.borrow_mut().remove(id) {
-                    gtk_sender.send_blocking(match item {
-                        Item::Node { .. } => PipewireMessage::NodeRemoved {id},
-                        Item::Port { node_id } => PipewireMessage::PortRemoved {id, node_id},
-                        Item::Link { .. } => PipewireMessage::LinkRemoved {id},
-                    }).expect("Failed to send message");
+                    match item {
+                        Item::Node { .. } => {
+                            gtk_sender.send_blocking(PipewireMessage::NodeRemoved {id})
+                                .expect("Failed to send message");
+                        }
+                        Item::Port { node_id } => {
+                            gtk_sender.send_blocking(PipewireMessage::PortRemoved {id, node_id})
+                                .expect("Failed to send message");
+                        }
+                        Item::Link { .. } => {
+                            gtk_sender.send_blocking(PipewireMessage::LinkRemoved {id})
+                                .expect("Failed to send message");
+                        }
+                        Item::Device => {
+                            // Device removed - no message needed for now
+                        }
+                    }
                 }
                 // Objects we don't track (params, metadata, etc.) are silently ignored
 
@@ -267,7 +285,18 @@ fn handle_node(
         })
         .or_else(|| props.get("media.class").and_then(media_class));
 
-    state.borrow_mut().insert(node.id, Item::Node);
+    // Extract device.id if present (for device nodes like sinks/sources)
+    let device_id = props
+        .get("device.id")
+        .and_then(|id| id.parse::<u32>().ok());
+
+    {
+        let mut state = state.borrow_mut();
+        state.insert(node.id, Item::Node { device_id });
+        if let Some(dev_id) = device_id {
+            state.set_node_device(node.id, dev_id);
+        }
+    }
 
     sender
         .send_blocking(PipewireMessage::NodeAdded {
@@ -514,6 +543,98 @@ fn handle_link_info(
     }
 }
 
+/// Handle a new device being added
+fn handle_device(
+    device: &GlobalObject<&DictRef>,
+    registry: &Rc<Registry>,
+    proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>,
+    state: &Rc<RefCell<State>>,
+) {
+    let device_id = device.id;
+    debug!("New device (id:{}) appeared", device_id);
+
+    state.borrow_mut().insert(device_id, Item::Device);
+
+    let proxy: Device = registry.bind(device).expect("Failed to bind to device proxy");
+
+    let listener = proxy
+        .add_listener_local()
+        .param(clone!(@strong state => move |_seq, param_type, _index, _next, param| {
+            if param_type == ParamType::Route {
+                handle_device_route(device_id, param, &state);
+            }
+        }))
+        .register();
+
+    // Subscribe to Route params for volume routing info
+    proxy.subscribe_params(&[ParamType::Route]);
+
+    proxies.borrow_mut().insert(
+        device_id,
+        ProxyItem::Device {
+            proxy,
+            _listener: listener,
+        },
+    );
+}
+
+/// Handle Route param from a device - extract route info for volume control
+fn handle_device_route(
+    device_id: u32,
+    param: Option<&pipewire::spa::pod::Pod>,
+    state: &Rc<RefCell<State>>,
+) {
+    use pipewire::spa::pod::deserialize::PodDeserializer;
+    use pipewire::spa::pod::Value;
+
+    let Some(param) = param else {
+        return;
+    };
+
+    let Ok((_, value)) = PodDeserializer::deserialize_any_from(param.as_bytes()) else {
+        return;
+    };
+
+    // Route param structure:
+    // - index: route index
+    // - device: device index
+    // - props: the props object (with volume, mute, etc.)
+    const SPA_PARAM_ROUTE_INDEX: u32 = 1;
+    const SPA_PARAM_ROUTE_DEVICE: u32 = 3;
+
+    if let Value::Object(obj) = value {
+        let mut route_index: Option<i32> = None;
+        let mut route_device: Option<i32> = None;
+
+        for prop in &obj.properties {
+            match prop.key {
+                SPA_PARAM_ROUTE_INDEX => {
+                    if let Value::Int(idx) = prop.value {
+                        route_index = Some(idx);
+                    }
+                }
+                SPA_PARAM_ROUTE_DEVICE => {
+                    if let Value::Int(dev) = prop.value {
+                        route_device = Some(dev);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(index), Some(device)) = (route_index, route_device) {
+            debug!("Device {} route: index={}, device={}", device_id, index, device);
+            state.borrow_mut().set_device_route(
+                device_id,
+                RouteInfo {
+                    route_index: index,
+                    route_device: device,
+                },
+            );
+        }
+    }
+}
+
 /// Toggle a link between the two specified ports.
 fn toggle_link(
     port_from: u32,
@@ -663,11 +784,37 @@ fn handle_node_props(
         for prop in &properties {
             // Try channelVolumes first
             if prop.key == SPA_PROP_CHANNEL_VOLUMES && !volume_sent {
+                match &prop.value {
+                    Value::ValueArray(ValueArray::Float(volumes)) => {
+                        if let Some(&volume) = volumes.first() {
+                            // Convert from cubic to linear for display
+                            let linear_volume = volume.cbrt();
+                            let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
+                                node_id,
+                                volume: linear_volume,
+                            });
+                            volume_sent = true;
+                        }
+                    }
+                    Value::ValueArray(ValueArray::Double(volumes)) => {
+                        if let Some(&volume) = volumes.first() {
+                            let linear_volume = (volume as f32).cbrt();
+                            let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
+                                node_id,
+                                volume: linear_volume,
+                            });
+                            volume_sent = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            // Also check softVolumes (used by some nodes)
+            const SPA_PROP_SOFT_VOLUMES: u32 = 65552;
+            if prop.key == SPA_PROP_SOFT_VOLUMES && !volume_sent {
                 if let Value::ValueArray(ValueArray::Float(ref volumes)) = prop.value {
                     if let Some(&volume) = volumes.first() {
-                        // Convert from cubic to linear for display
                         let linear_volume = volume.cbrt();
-                        info!("Volume changed for node {} (channelVolumes): {} (linear: {})", node_id, volume, linear_volume);
                         let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
                             node_id,
                             volume: linear_volume,
@@ -680,7 +827,6 @@ fn handle_node_props(
             if prop.key == SPA_PROP_VOLUME && !volume_sent {
                 if let Value::Float(volume) = prop.value {
                     let linear_volume = volume.cbrt();
-                    info!("Volume changed for node {} (volume): {} (linear: {})", node_id, volume, linear_volume);
                     let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
                         node_id,
                         volume: linear_volume,
@@ -691,7 +837,6 @@ fn handle_node_props(
             // Check mute state
             if prop.key == SPA_PROP_MUTE {
                 if let Value::Bool(muted) = prop.value {
-                    info!("Mute changed for node {}: {}", node_id, muted);
                     let _ = sender.send_blocking(PipewireMessage::MuteChanged {
                         node_id,
                         muted,
@@ -702,7 +847,12 @@ fn handle_node_props(
     }
 }
 
-fn set_volume(node_id: u32, volume: f32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+fn set_volume(
+    node_id: u32,
+    volume: f32,
+    proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>,
+    state: &Rc<RefCell<State>>,
+) {
     use pipewire::spa::pod::serialize::PodSerializer;
     use pipewire::spa::pod::{Object, Property, PropertyFlags, Value, ValueArray};
     use std::io::Cursor;
@@ -713,13 +863,24 @@ fn set_volume(node_id: u32, volume: f32, proxies: &Rc<RefCell<HashMap<u32, Proxy
     // Convert linear volume to cubic (perceptual) scale
     let cubic_volume = volume * volume * volume;
 
-    info!("Setting volume for node {} to {} (cubic: {})", node_id, volume, cubic_volume);
+    debug!("Setting volume for node {} to {} (cubic: {})", node_id, volume, cubic_volume);
 
-    // Try native PipeWire first for stream nodes
-    let native_success = {
-        let proxies = proxies.borrow();
+    // Check if this node is associated with a device
+    let device_info = state.borrow().get_node_route_info(node_id).map(|(d, r)| (d, r.clone()));
+
+    let proxies = proxies.borrow();
+
+    if let Some((device_id, route_info)) = device_info {
+        // Device node - set volume via Route param on the Device
+        if let Some(ProxyItem::Device { proxy, .. }) = proxies.get(&device_id) {
+            set_device_volume(proxy, &route_info, cubic_volume);
+            debug!("Volume set for node {} via Device {} Route", node_id, device_id);
+        } else {
+            warn!("Device {} not found for node {}", device_id, node_id);
+        }
+    } else {
+        // Stream node - set volume via Props on the Node
         if let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) {
-            // SPA constants
             const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
             const SPA_PARAM_PROPS: u32 = 2;
             const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
@@ -732,63 +893,95 @@ fn set_volume(node_id: u32, volume: f32, proxies: &Rc<RefCell<HashMap<u32, Proxy
                 &Value::Object(Object {
                     type_: SPA_TYPE_OBJECT_PROPS,
                     id: SPA_PARAM_PROPS,
-                    properties: vec![
-                        Property {
-                            key: SPA_PROP_CHANNEL_VOLUMES,
-                            flags: PropertyFlags::empty(),
-                            value: Value::ValueArray(ValueArray::Float(
-                                vec![cubic_volume, cubic_volume],
-                            )),
-                        },
-                    ],
+                    properties: vec![Property {
+                        key: SPA_PROP_CHANNEL_VOLUMES,
+                        flags: PropertyFlags::empty(),
+                        value: Value::ValueArray(ValueArray::Float(vec![cubic_volume, cubic_volume])),
+                    }],
                 }),
             );
 
             if let Ok((cursor, _size)) = result {
                 let pod_data = cursor.into_inner();
-                let pod = unsafe {
-                    &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod)
-                };
+                let pod = unsafe { &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod) };
                 proxy.set_param(ParamType::Props, 0, pod);
-                info!("Volume set for node {} via native Props", node_id);
-                true
-            } else {
-                false
+                debug!("Volume set for node {} via native Props", node_id);
             }
         } else {
             warn!("Node {} not found for volume control", node_id);
-            false
         }
-    };
-
-    // Always also try wpctl for device nodes (it handles device routing properly)
-    if native_success {
-        set_volume_wpctl(node_id, volume);
     }
 }
 
-fn set_volume_wpctl(node_id: u32, volume: f32) {
-    let volume_str = format!("{:.2}", volume);
+fn set_device_volume(proxy: &Device, route_info: &RouteInfo, cubic_volume: f32) {
+    use pipewire::spa::pod::serialize::PodSerializer;
+    use pipewire::spa::pod::{Object, Property, PropertyFlags, Value, ValueArray};
+    use std::io::Cursor;
 
-    std::thread::spawn(move || {
-        match std::process::Command::new("wpctl")
-            .args(["set-volume", &node_id.to_string(), &volume_str])
-            .output()
-        {
-            Ok(output) => {
-                if output.status.success() {
-                    info!("Volume set for node {} via wpctl", node_id);
-                } else {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    debug!("wpctl set-volume for node {} (may be expected): {}", node_id, stderr);
-                }
-            }
-            Err(e) => {
-                warn!("Failed to run wpctl: {}", e);
-            }
-        }
-    });
+    // SPA constants for Route param
+    const SPA_TYPE_OBJECT_PARAM_ROUTE: u32 = 0x40004;
+    const SPA_PARAM_ROUTE: u32 = 6;
+    const SPA_PARAM_ROUTE_INDEX: u32 = 1;
+    const SPA_PARAM_ROUTE_DEVICE: u32 = 3;
+    const SPA_PARAM_ROUTE_PROPS: u32 = 5;
+    const SPA_PARAM_ROUTE_SAVE: u32 = 7;
+
+    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
+    const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
+
+    // Build the props sub-object
+    let props_object = Object {
+        type_: SPA_TYPE_OBJECT_PROPS,
+        id: 0, // Nested object doesn't need id
+        properties: vec![Property {
+            key: SPA_PROP_CHANNEL_VOLUMES,
+            flags: PropertyFlags::empty(),
+            value: Value::ValueArray(ValueArray::Float(vec![cubic_volume, cubic_volume])),
+        }],
+    };
+
+    // Build the Route param
+    let route_object = Object {
+        type_: SPA_TYPE_OBJECT_PARAM_ROUTE,
+        id: SPA_PARAM_ROUTE,
+        properties: vec![
+            Property {
+                key: SPA_PARAM_ROUTE_INDEX,
+                flags: PropertyFlags::empty(),
+                value: Value::Int(route_info.route_index),
+            },
+            Property {
+                key: SPA_PARAM_ROUTE_DEVICE,
+                flags: PropertyFlags::empty(),
+                value: Value::Int(route_info.route_device),
+            },
+            Property {
+                key: SPA_PARAM_ROUTE_PROPS,
+                flags: PropertyFlags::empty(),
+                value: Value::Object(props_object),
+            },
+            Property {
+                key: SPA_PARAM_ROUTE_SAVE,
+                flags: PropertyFlags::empty(),
+                value: Value::Bool(true),
+            },
+        ],
+    };
+
+    let pod_vec: Vec<u8> = Vec::new();
+    let cursor = Cursor::new(pod_vec);
+
+    let result = PodSerializer::serialize(cursor, &Value::Object(route_object));
+
+    if let Ok((cursor, _size)) = result {
+        let pod_data = cursor.into_inner();
+        let pod = unsafe { &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod) };
+        proxy.set_param(ParamType::Route, 0, pod);
+    } else {
+        warn!("Failed to serialize Route param for device volume");
+    }
 }
+
 
 fn get_volume(node_id: u32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
     let proxies = proxies.borrow();
@@ -803,79 +996,135 @@ fn get_volume(node_id: u32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
     info!("Requested volume for node {}", node_id);
 }
 
-fn set_mute(node_id: u32, muted: bool, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+fn set_mute(
+    node_id: u32,
+    muted: bool,
+    proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>,
+    state: &Rc<RefCell<State>>,
+) {
     use pipewire::spa::pod::serialize::PodSerializer;
     use pipewire::spa::pod::{Object, Property, PropertyFlags, Value};
     use std::io::Cursor;
 
-    info!("Setting mute for node {} to {}", node_id, muted);
+    debug!("Setting mute for node {} to {}", node_id, muted);
+
+    // Check if this node is associated with a device
+    let device_info = state.borrow().get_node_route_info(node_id).map(|(d, r)| (d, r.clone()));
 
     let proxies = proxies.borrow();
-    let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) else {
-        warn!("Node {} not found for mute control", node_id);
-        return;
+
+    if let Some((device_id, route_info)) = device_info {
+        // Device node - set mute via Route param on the Device
+        if let Some(ProxyItem::Device { proxy, .. }) = proxies.get(&device_id) {
+            set_device_mute(proxy, &route_info, muted);
+            debug!("Mute set for node {} via Device {} Route", node_id, device_id);
+        } else {
+            warn!("Device {} not found for node {}", device_id, node_id);
+        }
+    } else {
+        // Stream node - set mute via Props on the Node
+        if let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) {
+            const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
+            const SPA_PARAM_PROPS: u32 = 2;
+            const SPA_PROP_MUTE: u32 = 0x10004;
+
+            let pod_vec: Vec<u8> = Vec::new();
+            let cursor = Cursor::new(pod_vec);
+
+            let result = PodSerializer::serialize(
+                cursor,
+                &Value::Object(Object {
+                    type_: SPA_TYPE_OBJECT_PROPS,
+                    id: SPA_PARAM_PROPS,
+                    properties: vec![Property {
+                        key: SPA_PROP_MUTE,
+                        flags: PropertyFlags::empty(),
+                        value: Value::Bool(muted),
+                    }],
+                }),
+            );
+
+            if let Ok((cursor, _size)) = result {
+                let pod_data = cursor.into_inner();
+                let pod = unsafe { &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod) };
+                proxy.set_param(ParamType::Props, 0, pod);
+                debug!("Mute set for node {} to {} via native Props", node_id, muted);
+            }
+        } else {
+            warn!("Node {} not found for mute control", node_id);
+        }
+    }
+}
+
+fn set_device_mute(proxy: &Device, route_info: &RouteInfo, muted: bool) {
+    use pipewire::spa::pod::serialize::PodSerializer;
+    use pipewire::spa::pod::{Object, Property, PropertyFlags, Value};
+    use std::io::Cursor;
+
+    // SPA constants for Route param
+    const SPA_TYPE_OBJECT_PARAM_ROUTE: u32 = 0x40004;
+    const SPA_PARAM_ROUTE: u32 = 6;
+    const SPA_PARAM_ROUTE_INDEX: u32 = 1;
+    const SPA_PARAM_ROUTE_DEVICE: u32 = 3;
+    const SPA_PARAM_ROUTE_PROPS: u32 = 5;
+    const SPA_PARAM_ROUTE_SAVE: u32 = 7;
+
+    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
+    const SPA_PROP_MUTE: u32 = 0x10004;
+
+    // Build the props sub-object
+    let props_object = Object {
+        type_: SPA_TYPE_OBJECT_PROPS,
+        id: 0, // Nested object doesn't need id
+        properties: vec![Property {
+            key: SPA_PROP_MUTE,
+            flags: PropertyFlags::empty(),
+            value: Value::Bool(muted),
+        }],
     };
 
-    // SPA constants
-    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
-    const SPA_PARAM_PROPS: u32 = 2;
-    const SPA_PROP_MUTE: u32 = 0x10004;
+    // Build the Route param
+    let route_object = Object {
+        type_: SPA_TYPE_OBJECT_PARAM_ROUTE,
+        id: SPA_PARAM_ROUTE,
+        properties: vec![
+            Property {
+                key: SPA_PARAM_ROUTE_INDEX,
+                flags: PropertyFlags::empty(),
+                value: Value::Int(route_info.route_index),
+            },
+            Property {
+                key: SPA_PARAM_ROUTE_DEVICE,
+                flags: PropertyFlags::empty(),
+                value: Value::Int(route_info.route_device),
+            },
+            Property {
+                key: SPA_PARAM_ROUTE_PROPS,
+                flags: PropertyFlags::empty(),
+                value: Value::Object(props_object),
+            },
+            Property {
+                key: SPA_PARAM_ROUTE_SAVE,
+                flags: PropertyFlags::empty(),
+                value: Value::Bool(true),
+            },
+        ],
+    };
 
     let pod_vec: Vec<u8> = Vec::new();
     let cursor = Cursor::new(pod_vec);
 
-    let result = PodSerializer::serialize(
-        cursor,
-        &Value::Object(Object {
-            type_: SPA_TYPE_OBJECT_PROPS,
-            id: SPA_PARAM_PROPS,
-            properties: vec![
-                Property {
-                    key: SPA_PROP_MUTE,
-                    flags: PropertyFlags::empty(),
-                    value: Value::Bool(muted),
-                },
-            ],
-        }),
-    );
+    let result = PodSerializer::serialize(cursor, &Value::Object(route_object));
 
     if let Ok((cursor, _size)) = result {
         let pod_data = cursor.into_inner();
-        let pod = unsafe {
-            &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod)
-        };
-        proxy.set_param(ParamType::Props, 0, pod);
-        info!("Mute set for node {} to {} via native Props", node_id, muted);
+        let pod = unsafe { &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod) };
+        proxy.set_param(ParamType::Route, 0, pod);
     } else {
-        warn!("Failed to serialize mute pod for node {}", node_id);
+        warn!("Failed to serialize Route param for device mute");
     }
-
-    // Also try wpctl for device nodes
-    set_mute_wpctl(node_id, muted);
 }
 
-fn set_mute_wpctl(node_id: u32, muted: bool) {
-    let mute_str = if muted { "1" } else { "0" };
-
-    std::thread::spawn(move || {
-        match std::process::Command::new("wpctl")
-            .args(["set-mute", &node_id.to_string(), mute_str])
-            .output()
-        {
-            Ok(output) => {
-                if output.status.success() {
-                    info!("Mute set for node {} to {} via wpctl", node_id, muted);
-                } else {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    debug!("wpctl set-mute for node {} (may be expected): {}", node_id, stderr);
-                }
-            }
-            Err(e) => {
-                warn!("Failed to run wpctl: {}", e);
-            }
-        }
-    });
-}
 
 fn get_link_media_type(link_info: &LinkInfoRef) -> MediaType {
     let media_type = link_info
