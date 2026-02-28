@@ -160,6 +160,7 @@ pub(super) fn thread_main(
                 GtkMessage::RemoveLink { port_from, port_to } => remove_link(port_from, port_to, &registry, &state),
                 GtkMessage::SetVolume { node_id, volume } => set_volume(node_id, volume, &proxies),
                 GtkMessage::GetVolume { node_id } => get_volume(node_id, &proxies),
+                GtkMessage::SetMute { node_id, muted } => set_mute(node_id, muted, &proxies),
                 GtkMessage::Terminate | GtkMessage::Connect(_) => {
                     loop_state.borrow_mut().handle_message(msg);
                     mainloop.quit();
@@ -635,15 +636,16 @@ fn handle_node_props(
     };
 
     const SPA_PROP_VOLUME: u32 = 3;
+    const SPA_PROP_MUTE: u32 = 5;
     const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
-    const SPA_PARAM_ROUTE_props: u32 = 5;
+    const SPA_PARAM_ROUTE_PROPS: u32 = 5;
 
     // Handle both Props and Route params
     if let Value::Object(obj) = value {
         let properties = if param_type == ParamType::Route {
             // For Route, look inside the props sub-object
             obj.properties.iter()
-                .find(|p| p.key == SPA_PARAM_ROUTE_props)
+                .find(|p| p.key == SPA_PARAM_ROUTE_PROPS)
                 .and_then(|p| {
                     if let Value::Object(props_obj) = &p.value {
                         Some(props_obj.properties.clone())
@@ -656,9 +658,11 @@ fn handle_node_props(
             obj.properties
         };
 
-        for prop in properties {
+        let mut volume_sent = false;
+
+        for prop in &properties {
             // Try channelVolumes first
-            if prop.key == SPA_PROP_CHANNEL_VOLUMES {
+            if prop.key == SPA_PROP_CHANNEL_VOLUMES && !volume_sent {
                 if let Value::ValueArray(ValueArray::Float(ref volumes)) = prop.value {
                     if let Some(&volume) = volumes.first() {
                         // Convert from cubic to linear for display
@@ -668,12 +672,12 @@ fn handle_node_props(
                             node_id,
                             volume: linear_volume,
                         });
-                        return;
+                        volume_sent = true;
                     }
                 }
             }
             // Fallback to single volume
-            if prop.key == SPA_PROP_VOLUME {
+            if prop.key == SPA_PROP_VOLUME && !volume_sent {
                 if let Value::Float(volume) = prop.value {
                     let linear_volume = volume.cbrt();
                     info!("Volume changed for node {} (volume): {} (linear: {})", node_id, volume, linear_volume);
@@ -681,7 +685,17 @@ fn handle_node_props(
                         node_id,
                         volume: linear_volume,
                     });
-                    return;
+                    volume_sent = true;
+                }
+            }
+            // Check mute state
+            if prop.key == SPA_PROP_MUTE {
+                if let Value::Bool(muted) = prop.value {
+                    info!("Mute changed for node {}: {}", node_id, muted);
+                    let _ = sender.send_blocking(PipewireMessage::MuteChanged {
+                        node_id,
+                        muted,
+                    });
                 }
             }
         }
@@ -787,6 +801,54 @@ fn get_volume(node_id: u32, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
     proxy.enum_params(0, Some(ParamType::Props), 0, u32::MAX);
     proxy.enum_params(0, Some(ParamType::Route), 0, u32::MAX);
     info!("Requested volume for node {}", node_id);
+}
+
+fn set_mute(node_id: u32, muted: bool, proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>) {
+    use pipewire::spa::pod::serialize::PodSerializer;
+    use pipewire::spa::pod::{Object, Property, PropertyFlags, Value};
+    use std::io::Cursor;
+
+    info!("Setting mute for node {} to {}", node_id, muted);
+
+    let proxies = proxies.borrow();
+    let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) else {
+        warn!("Node {} not found for mute control", node_id);
+        return;
+    };
+
+    // SPA constants
+    const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
+    const SPA_PARAM_PROPS: u32 = 2;
+    const SPA_PROP_MUTE: u32 = 5;
+
+    let pod_vec: Vec<u8> = Vec::new();
+    let cursor = Cursor::new(pod_vec);
+
+    let result = PodSerializer::serialize(
+        cursor,
+        &Value::Object(Object {
+            type_: SPA_TYPE_OBJECT_PROPS,
+            id: SPA_PARAM_PROPS,
+            properties: vec![
+                Property {
+                    key: SPA_PROP_MUTE,
+                    flags: PropertyFlags::empty(),
+                    value: Value::Bool(muted),
+                },
+            ],
+        }),
+    );
+
+    if let Ok((cursor, _size)) = result {
+        let pod_data = cursor.into_inner();
+        let pod = unsafe {
+            &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod)
+        };
+        proxy.set_param(ParamType::Props, 0, pod);
+        info!("Mute set for node {} to {}", node_id, muted);
+    } else {
+        warn!("Failed to serialize mute pod for node {}", node_id);
+    }
 }
 
 fn get_link_media_type(link_info: &LinkInfoRef) -> MediaType {

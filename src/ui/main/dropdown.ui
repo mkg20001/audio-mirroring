@@ -108,6 +108,22 @@
                         <property name="draw-value">false</property>
                     </object>
                 </child>
+                <child>
+                    <object class="GtkToggleButton" id="mute_btn">
+                        <property name="tooltip-text">Mute</property>
+                        <property name="hexpand">false</property>
+                        <property name="vexpand">false</property>
+                        <style>
+                            <class name="circular"/>
+                            <class name="flat"/>
+                        </style>
+                        <child>
+                            <object class="GtkImage" id="mute_icon">
+                                <property name="icon-name">audio-volume-high-symbolic</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
             </object>
         </child>
     </template>

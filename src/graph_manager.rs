@@ -115,6 +115,9 @@ mod imp {
                     PipewireMessage::VolumeChanged { node_id, volume } => {
                         self.volume_changed(node_id, volume)
                     }
+                    PipewireMessage::MuteChanged { node_id, muted } => {
+                        self.mute_changed(node_id, muted)
+                    }
                     PipewireMessage::Connecting => {
                         self.obj().connection_banner().set_revealed(true);
                     }
@@ -581,6 +584,11 @@ mod imp {
             self.obj().main().update_volume(node_id, volume);
         }
 
+        fn mute_changed(&self, node_id: u32, muted: bool) {
+            log::info!("Mute changed for node {}: {}", node_id, muted);
+            self.obj().main().update_mute(node_id, muted);
+        }
+
         pub fn get_volume(&self, node_id: u32) {
             let sender = self.pw_sender.get().expect("pw_sender should be set");
             sender
@@ -628,6 +636,11 @@ impl GraphManager {
             res.set_volume(node_id, volume as f32);
         }));
 
+        // Connect to source dropdown mute changes
+        source_dd.connect_mute_changed(glib::clone!(@weak res => move |_dropdown, node_id, muted| {
+            res.set_mute(node_id, muted);
+        }));
+
         // Connect to source dropdown selection cancelled (edit mode)
         source_dd.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, _source_id| {
             res.imp().clear_source();
@@ -645,6 +658,11 @@ impl GraphManager {
             res.set_volume(node_id, volume as f32);
         }));
 
+        // Connect to target dropdown mute changes
+        target_dd.connect_mute_changed(glib::clone!(@weak res => move |_dropdown, node_id, muted| {
+            res.set_mute(node_id, muted);
+        }));
+
         // Connect to target dropdown selection cancelled (edit mode)
         target_dd.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, target_id| {
             res.imp().remove_target(target_id);
@@ -658,6 +676,9 @@ impl GraphManager {
             }));
             dropdown.connect_volume_changed(glib::clone!(@weak res => move |_dropdown, node_id, volume| {
                 res.set_volume(node_id, volume as f32);
+            }));
+            dropdown.connect_mute_changed(glib::clone!(@weak res => move |_dropdown, node_id, muted| {
+                res.set_mute(node_id, muted);
             }));
             dropdown.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, target_id| {
                 res.imp().remove_target(target_id);
@@ -685,6 +706,13 @@ impl GraphManager {
         sender
             .send(crate::GtkMessage::SetVolume { node_id, volume })
             .expect("Failed to send volume message");
+    }
+
+    pub fn set_mute(&self, node_id: u32, muted: bool) {
+        let sender = self.imp().pw_sender.get().expect("pw_sender should be set");
+        sender
+            .send(crate::GtkMessage::SetMute { node_id, muted })
+            .expect("Failed to send mute message");
     }
 
     pub fn get_volume(&self, node_id: u32) {

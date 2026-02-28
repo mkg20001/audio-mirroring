@@ -307,4 +307,27 @@ impl MainView {
             child = widget.next_sibling();
         }
     }
+
+    pub fn update_mute(&self, node_id: u32, muted: bool) {
+        let imp = self.imp();
+
+        // Check source dropdown
+        if imp.source_dd.confirmed_node_id() == Some(node_id) {
+            imp.source_dd.set_muted(muted);
+            return;
+        }
+
+        // Check all target dropdowns
+        let container = &*imp.targets_container;
+        let mut child = container.first_child();
+        while let Some(widget) = child {
+            if let Some(dropdown) = widget.downcast_ref::<Dropdown>() {
+                if dropdown.confirmed_node_id() == Some(node_id) {
+                    dropdown.set_muted(muted);
+                    return;
+                }
+            }
+            child = widget.next_sibling();
+        }
+    }
 }

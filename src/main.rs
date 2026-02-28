@@ -37,6 +37,8 @@ pub enum GtkMessage {
     SetVolume { node_id: u32, volume: f32 },
     /// Request current volume for a node.
     GetVolume { node_id: u32 },
+    /// Set mute state for a node.
+    SetMute { node_id: u32, muted: bool },
     /// Connect to PipeWire service.
     Connect(Option<String>),
     /// Quit the event loop and let the thread finish.
@@ -94,6 +96,10 @@ pub enum PipewireMessage {
     VolumeChanged {
         node_id: u32,
         volume: f32,
+    },
+    MuteChanged {
+        node_id: u32,
+        muted: bool,
     },
     Connecting,
     Connected,

@@ -43,6 +43,7 @@ mod imp {
         pub(super) candidates: RefCell<Vec<CandidateData>>,
         pub(super) confirmed_target_id: Cell<Option<u32>>,
         pub(super) updating_volume: Cell<bool>,
+        pub(super) updating_mute: Cell<bool>,
 
         #[template_child]
         pub(super) dropdown: TemplateChild<gtk::DropDown>,
@@ -64,6 +65,10 @@ mod imp {
         pub(super) edit_btn: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) volume_slider: TemplateChild<gtk::Scale>,
+        #[template_child]
+        pub(super) mute_btn: TemplateChild<gtk::ToggleButton>,
+        #[template_child]
+        pub(super) mute_icon: TemplateChild<gtk::Image>,
     }
 
     #[glib::object_subclass]
@@ -101,6 +106,9 @@ mod imp {
                         .build(),
                     Signal::builder("selection-cancelled")
                         .param_types([u32::static_type()])
+                        .build(),
+                    Signal::builder("mute-changed")
+                        .param_types([u32::static_type(), bool::static_type()])
                         .build(),
                 ]
             });
@@ -167,6 +175,26 @@ mod imp {
                     if let Some(node_id) = imp.confirmed_target_id.get() {
                         let volume = scale.value() / 100.0; // Convert 0-100 to 0.0-1.0
                         imp.obj().emit_by_name::<()>("volume-changed", &[&node_id, &volume]);
+                    }
+                }));
+
+            self.mute_btn
+                .connect_toggled(clone!(@weak self as imp => move |btn| {
+                    // Don't emit signal if we're updating programmatically
+                    if imp.updating_mute.get() {
+                        return;
+                    }
+                    let muted = btn.is_active();
+                    // Update icon based on mute state
+                    let icon_name = if muted {
+                        "audio-volume-muted-symbolic"
+                    } else {
+                        "audio-volume-high-symbolic"
+                    };
+                    imp.mute_icon.set_icon_name(Some(icon_name));
+
+                    if let Some(node_id) = imp.confirmed_target_id.get() {
+                        imp.obj().emit_by_name::<()>("mute-changed", &[&node_id, &muted]);
                     }
                 }));
 
@@ -361,12 +389,37 @@ impl Dropdown {
         imp.updating_volume.set(false);
     }
 
+    pub fn set_muted(&self, muted: bool) {
+        let imp = self.imp();
+        // Set flag to prevent feedback loop
+        imp.updating_mute.set(true);
+        imp.mute_btn.set_active(muted);
+        // Update icon based on mute state
+        let icon_name = if muted {
+            "audio-volume-muted-symbolic"
+        } else {
+            "audio-volume-high-symbolic"
+        };
+        imp.mute_icon.set_icon_name(Some(icon_name));
+        imp.updating_mute.set(false);
+    }
+
     pub fn connect_volume_changed<F: Fn(&Self, u32, f64) + 'static>(&self, f: F) -> glib::SignalHandlerId {
         self.connect_closure(
             "volume-changed",
             false,
             glib::closure_local!(move |dropdown: &Dropdown, node_id: u32, volume: f64| {
                 f(dropdown, node_id, volume);
+            }),
+        )
+    }
+
+    pub fn connect_mute_changed<F: Fn(&Self, u32, bool) + 'static>(&self, f: F) -> glib::SignalHandlerId {
+        self.connect_closure(
+            "mute-changed",
+            false,
+            glib::closure_local!(move |dropdown: &Dropdown, node_id: u32, muted: bool| {
+                f(dropdown, node_id, muted);
             }),
         )
     }
