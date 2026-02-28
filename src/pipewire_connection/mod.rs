@@ -321,8 +321,8 @@ fn handle_node(
     let node_id = node.id;
     let listener = proxy
         .add_listener_local()
-        .info(clone!(@strong sender, @strong proxies => move |info| {
-            handle_node_info(info, &sender, &proxies);
+        .info(clone!(@strong sender, @strong proxies, @strong state => move |info| {
+            handle_node_info(info, &sender, &proxies, &state);
         }))
         .param(clone!(@strong sender => move |_seq, param_type, _index, _next, param| {
             if param_type == ParamType::Props || param_type == ParamType::Route {
@@ -347,6 +347,7 @@ fn handle_node_info(
     info: &NodeInfoRef,
     sender: &async_channel::Sender<PipewireMessage>,
     proxies: &Rc<RefCell<HashMap<u32, ProxyItem>>>,
+    state: &Rc<RefCell<State>>,
 ) {
     debug!("Received node info: {:?}", info);
 
@@ -358,6 +359,28 @@ fn handle_node_info(
     };
 
     let props = info.props().expect("NodeInfo object is missing properties");
+
+    // Update device info from node info props (card.profile.device is often not in global props)
+    if let Some(device_id_str) = props.get("device.id") {
+        if let Ok(device_id) = device_id_str.parse::<u32>() {
+            let card_profile_device = props
+                .get("card.profile.device")
+                .and_then(|v| v.parse::<i32>().ok())
+                .unwrap_or(0);
+            debug!(
+                "Node {} device info: device_id={}, card.profile.device={}",
+                id, device_id, card_profile_device
+            );
+            state.borrow_mut().set_node_device_info(
+                id,
+                NodeDeviceInfo {
+                    device_id,
+                    card_profile_device,
+                },
+            );
+        }
+    }
+
     if let Some(media_name) = props.get(&keys::MEDIA_NAME) {
         let name = get_node_name(props).to_string();
 
@@ -791,71 +814,61 @@ fn handle_node_props(
             obj.properties
         };
 
-        let mut volume_sent = false;
+        // First pass: look for channelVolumes (preferred) and mute
+        let mut found_channel_volumes = false;
+        let mut mute_sent = false;
 
         for prop in &properties {
-            // Try channelVolumes first
-            if prop.key == SPA_PROP_CHANNEL_VOLUMES && !volume_sent {
+            // Look for channelVolumes (this is the actual volume level)
+            if prop.key == SPA_PROP_CHANNEL_VOLUMES {
                 match &prop.value {
                     Value::ValueArray(ValueArray::Float(volumes)) => {
                         if let Some(&volume) = volumes.first() {
                             // Convert from cubic to linear for display
                             let linear_volume = volume.cbrt();
+                            debug!(
+                                "Node {} channelVolumes: raw={}, linear={}",
+                                node_id, volume, linear_volume
+                            );
                             let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
                                 node_id,
                                 volume: linear_volume,
                             });
-                            volume_sent = true;
+                            found_channel_volumes = true;
                         }
                     }
                     Value::ValueArray(ValueArray::Double(volumes)) => {
                         if let Some(&volume) = volumes.first() {
                             let linear_volume = (volume as f32).cbrt();
+                            debug!(
+                                "Node {} channelVolumes (double): raw={}, linear={}",
+                                node_id, volume, linear_volume
+                            );
                             let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
                                 node_id,
                                 volume: linear_volume,
                             });
-                            volume_sent = true;
+                            found_channel_volumes = true;
                         }
                     }
                     _ => {}
                 }
             }
-            // Also check softVolumes (used by some nodes)
-            const SPA_PROP_SOFT_VOLUMES: u32 = 65552;
-            if prop.key == SPA_PROP_SOFT_VOLUMES && !volume_sent {
-                if let Value::ValueArray(ValueArray::Float(ref volumes)) = prop.value {
-                    if let Some(&volume) = volumes.first() {
-                        let linear_volume = volume.cbrt();
-                        let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
-                            node_id,
-                            volume: linear_volume,
-                        });
-                        volume_sent = true;
-                    }
-                }
-            }
-            // Fallback to single volume
-            if prop.key == SPA_PROP_VOLUME && !volume_sent {
-                if let Value::Float(volume) = prop.value {
-                    let linear_volume = volume.cbrt();
-                    let _ = sender.send_blocking(PipewireMessage::VolumeChanged {
-                        node_id,
-                        volume: linear_volume,
-                    });
-                    volume_sent = true;
-                }
-            }
             // Check mute state
-            if prop.key == SPA_PROP_MUTE {
+            if prop.key == SPA_PROP_MUTE && !mute_sent {
                 if let Value::Bool(muted) = prop.value {
                     let _ = sender.send_blocking(PipewireMessage::MuteChanged {
                         node_id,
                         muted,
                     });
+                    mute_sent = true;
                 }
             }
         }
+
+        // Note: We intentionally skip SPA_PROP_VOLUME (single volume multiplier)
+        // and softVolumes - these are software multipliers, not the actual volume level.
+        // If channelVolumes is not found, we don't send a volume update.
     }
 }
 
@@ -875,7 +888,7 @@ fn set_volume(
     // Convert linear volume to cubic (perceptual) scale
     let cubic_volume = volume * volume * volume;
 
-    debug!("Setting volume for node {} to {} (cubic: {})", node_id, volume, cubic_volume);
+    info!("set_volume: node={}, linear={}, cubic={}", node_id, volume, cubic_volume);
 
     // Check if this node is associated with a device
     let device_info = state.borrow().get_node_route_info(node_id).map(|(d, r)| (d, r.clone()));
@@ -884,14 +897,19 @@ fn set_volume(
 
     if let Some((device_id, route_info)) = device_info {
         // Device node - set volume via Route param on the Device
+        info!(
+            "set_volume: node {} is device node (device={}, route_index={}, route_device={})",
+            node_id, device_id, route_info.route_index, route_info.route_device
+        );
         if let Some(ProxyItem::Device { proxy, .. }) = proxies.get(&device_id) {
             set_device_volume(proxy, &route_info, cubic_volume);
-            debug!("Volume set for node {} via Device {} Route", node_id, device_id);
+            info!("Volume set for node {} via Device {} Route", node_id, device_id);
         } else {
             warn!("Device {} not found for node {}", device_id, node_id);
         }
     } else {
         // Stream node - set volume via Props on the Node
+        info!("set_volume: node {} is stream node (no device info)", node_id);
         if let Some(ProxyItem::Node { proxy, .. }) = proxies.get(&node_id) {
             const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
             const SPA_PARAM_PROPS: u32 = 2;
