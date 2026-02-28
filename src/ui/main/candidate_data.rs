@@ -30,6 +30,7 @@ mod imp {
         pub id: Cell<u32>,
         pub kind: Cell<u32>,
         pub label: RefCell<String>,
+        pub disabled: Cell<bool>,
     }
 
     impl Default for CandidateData {
@@ -38,6 +39,7 @@ mod imp {
                 id: Cell::default(),
                 kind: Cell::new(0),
                 label: RefCell::new(String::new()),
+                disabled: Cell::new(false),
             }
         }
     }
@@ -62,6 +64,9 @@ mod imp {
                     glib::ParamSpecString::builder("label")
                         .flags(glib::ParamFlags::READWRITE)
                         .build(),
+                    glib::ParamSpecBoolean::builder("disabled")
+                        .flags(glib::ParamFlags::READWRITE)
+                        .build(),
                 ]
             });
 
@@ -73,6 +78,7 @@ mod imp {
                 "id" => self.id.get().to_value(),
                 "kind" => self.kind.get().to_value(),
                 "label" => self.label.borrow().clone().to_value(),
+                "disabled" => self.disabled.get().to_value(),
                 _ => unimplemented!(),
             }
         }
@@ -88,6 +94,7 @@ mod imp {
                         *self.label.borrow_mut() = new_label;
                     }
                 }
+                "disabled" => self.disabled.set(value.get().unwrap()),
                 _ => unimplemented!(),
             }
         }
@@ -129,6 +136,14 @@ impl CandidateData {
 
     pub fn set_label(&self, label: &str) {
         self.set_property("label", label);
+    }
+
+    pub fn disabled(&self) -> bool {
+        self.property::<bool>("disabled")
+    }
+
+    pub fn set_disabled(&self, disabled: bool) {
+        self.set_property("disabled", disabled);
     }
 }
 

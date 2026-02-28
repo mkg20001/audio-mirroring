@@ -215,6 +215,9 @@ impl MainView {
         // Update removable states for all dropdowns
         self.update_removable_states();
 
+        // Sync disabled IDs to the new dropdown
+        self.update_disabled_states();
+
         // Emit signal so GraphManager can connect to the new dropdown
         self.emit_by_name::<()>("target-dropdown-added", &[&dropdown]);
     }
@@ -326,6 +329,50 @@ impl MainView {
                     dropdown.set_muted(muted);
                     return;
                 }
+            }
+            child = widget.next_sibling();
+        }
+    }
+
+    /// Update disabled states on all dropdowns to prevent duplicate selections
+    pub fn update_disabled_states(&self) {
+        let imp = self.imp();
+
+        // Collect all confirmed IDs
+        let source_id = imp.source_dd.confirmed_node_id();
+        let mut target_ids: HashSet<u32> = HashSet::new();
+
+        let container = &*imp.targets_container;
+        let mut child = container.first_child();
+        while let Some(widget) = child {
+            if let Some(dropdown) = widget.downcast_ref::<Dropdown>() {
+                if let Some(id) = dropdown.confirmed_node_id() {
+                    target_ids.insert(id);
+                }
+            }
+            child = widget.next_sibling();
+        }
+
+        // Source dropdown: disable all target IDs
+        imp.source_dd.set_disabled_ids(target_ids.clone());
+
+        // Target dropdowns: disable source ID and other target IDs
+        let mut child = container.first_child();
+        while let Some(widget) = child {
+            if let Some(dropdown) = widget.downcast_ref::<Dropdown>() {
+                let mut disabled = HashSet::new();
+                // Add source ID
+                if let Some(id) = source_id {
+                    disabled.insert(id);
+                }
+                // Add other target IDs (not this dropdown's own selection)
+                let this_id = dropdown.confirmed_node_id();
+                for &id in &target_ids {
+                    if Some(id) != this_id {
+                        disabled.insert(id);
+                    }
+                }
+                dropdown.set_disabled_ids(disabled);
             }
             child = widget.next_sibling();
         }

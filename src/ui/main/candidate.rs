@@ -87,6 +87,12 @@ mod imp {
         pub(super) label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) icon: TemplateChild<gtk::Image>,
+        #[property(
+            name = "disabled", type = bool,
+            get = |this: &Self| this.disabled.get(),
+            set = Self::set_disabled
+        )]
+        pub(super) disabled: Cell<bool>,
     }
 
     impl Default for Candidate {
@@ -96,6 +102,7 @@ mod imp {
                 kind: Cell::new(CandidateType::Application),
                 label: TemplateChild::default(),
                 icon: TemplateChild::default(),
+                disabled: Cell::new(false),
             }
         }
     }
@@ -144,6 +151,20 @@ mod imp {
                 CandidateType::Device => "audio-card-symbolic",
             };
             self.icon.set_icon_name(Some(icon_name));
+        }
+
+        fn set_disabled(&self, disabled: bool) {
+            self.disabled.set(disabled);
+            // Apply visual styling for disabled state
+            if disabled {
+                self.obj().add_css_class("dim-label");
+                self.label.add_css_class("dim-label");
+                self.icon.set_opacity(0.5);
+            } else {
+                self.obj().remove_css_class("dim-label");
+                self.label.remove_css_class("dim-label");
+                self.icon.set_opacity(1.0);
+            }
         }
     }
 }

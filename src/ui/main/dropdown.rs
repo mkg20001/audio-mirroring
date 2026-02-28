@@ -19,6 +19,7 @@ use crate::ui::main::candidate::CandidateType;
 use adw::gio::ListStore;
 use adw::gtk::SignalListItemFactory;
 use adw::{glib, gtk, prelude::*, subclass::prelude::*};
+use std::collections::HashSet;
 
 mod imp {
     use super::*;
@@ -31,9 +32,10 @@ mod imp {
     use std::{
         cell::{Cell, RefCell},
         collections::HashSet,
+        rc::Rc,
     };
 
-    #[derive(glib::Properties, gtk::CompositeTemplate, Default)]
+    #[derive(glib::Properties, gtk::CompositeTemplate)]
     #[properties(wrapper_type = super::Dropdown)]
     #[template(file = "dropdown.ui")]
     pub struct Dropdown {
@@ -44,6 +46,7 @@ mod imp {
         pub(super) confirmed_target_id: Cell<Option<u32>>,
         pub(super) updating_volume: Cell<bool>,
         pub(super) updating_mute: Cell<bool>,
+        pub(super) disabled_ids: Rc<RefCell<HashSet<u32>>>,
 
         #[template_child]
         pub(super) dropdown: TemplateChild<gtk::DropDown>,
@@ -69,6 +72,30 @@ mod imp {
         pub(super) mute_btn: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub(super) mute_icon: TemplateChild<gtk::Image>,
+    }
+
+    impl Default for Dropdown {
+        fn default() -> Self {
+            Self {
+                pipewire_id: Cell::default(),
+                candidates: RefCell::default(),
+                confirmed_target_id: Cell::default(),
+                updating_volume: Cell::default(),
+                updating_mute: Cell::default(),
+                disabled_ids: Rc::new(RefCell::new(HashSet::new())),
+                dropdown: TemplateChild::default(),
+                select_mode: TemplateChild::default(),
+                confirm_btn: TemplateChild::default(),
+                remove_btn: TemplateChild::default(),
+                use_mode: TemplateChild::default(),
+                selected_icon: TemplateChild::default(),
+                selected_label: TemplateChild::default(),
+                edit_btn: TemplateChild::default(),
+                volume_slider: TemplateChild::default(),
+                mute_btn: TemplateChild::default(),
+                mute_icon: TemplateChild::default(),
+            }
+        }
     }
 
     #[glib::object_subclass]
@@ -124,6 +151,11 @@ mod imp {
                 .connect_clicked(clone!(@weak self as imp => move |_| {
                     // Update selected label and icon before switching modes
                     if let Some(selected) = imp.obj().selected_candidate() {
+                        // Don't allow confirming disabled items
+                        if selected.disabled() {
+                            return;
+                        }
+
                         let id = selected.id();
                         let kind = selected.kind();
                         let label = selected.label();
@@ -149,15 +181,31 @@ mod imp {
                     }
                 }));
 
+            // Update confirm button sensitivity when selection changes
+            self.dropdown.connect_selected_notify(clone!(@weak self as imp => move |dropdown| {
+                let selected = dropdown.selected();
+                if selected == gtk::INVALID_LIST_POSITION {
+                    imp.confirm_btn.set_sensitive(false);
+                    return;
+                }
+                let candidates = imp.candidates.borrow();
+                if let Some(candidate) = candidates.get(selected as usize) {
+                    imp.confirm_btn.set_sensitive(!candidate.disabled());
+                } else {
+                    imp.confirm_btn.set_sensitive(false);
+                }
+            }));
+
             self.edit_btn
                 .connect_clicked(clone!(@weak self as imp => move |_| {
-                    // Emit cancellation signal before switching modes
-                    if let Some(target_id) = imp.confirmed_target_id.get() {
-                        imp.obj().emit_by_name::<()>("selection-cancelled", &[&target_id]);
-                    }
+                    // Clear confirmed ID first, then emit signal so update_disabled_states works correctly
+                    let target_id = imp.confirmed_target_id.get();
                     imp.confirmed_target_id.set(None);
                     imp.use_mode.hide();
                     imp.select_mode.show();
+                    if let Some(id) = target_id {
+                        imp.obj().emit_by_name::<()>("selection-cancelled", &[&id]);
+                    }
                 }));
 
             self.remove_btn
@@ -197,6 +245,7 @@ mod imp {
                         imp.obj().emit_by_name::<()>("mute-changed", &[&node_id, &muted]);
                     }
                 }));
+
 
             /*let name_expr = gtk::PropertyExpression::new(StringList::static_type(), None, "string");
             let factory = gtk::SignalListItemFactory::new();
@@ -436,8 +485,8 @@ impl Dropdown {
 
     pub fn update_candidates(&self, c: Vec<CandidateData>) {
         let imp = self.imp();
+
         imp.candidates.replace(c);
-        // Create a list of strings
         let candidates_ref = imp.candidates.borrow();
 
         let model = ListStore::new::<CandidateData>();
@@ -453,19 +502,9 @@ impl Dropdown {
             list_item.set_child(Some(&candidate));
         });
 
+        // Capture disabled_ids Rc for use in bind closure
+        let disabled_ids = imp.disabled_ids.clone();
         factory.connect_bind(move |_factory, list_item| {
-            /*let item = list_item
-                .item()
-                .and_downcast::<CandidateData>()
-                .expect("Expected CandidateData");
-            list_item.set_child(Some(&Candidate::from(&item)));*/
-            /*let item = list_item
-                .item()
-                .and_downcast::<CandidateData>()
-                .expect("Expected CandidateData");
-
-            let candidate = Candidate::from(&item);
-            list_item.set_child(Some(&candidate));*/
             let candidate = list_item.child().unwrap().downcast::<Candidate>().unwrap();
             let item = list_item
                 .item()
@@ -477,28 +516,39 @@ impl Dropdown {
             candidate.set_property("pipewire-id", &item.id());
             candidate.set_property("kind", &item.kind().as_raw());
             candidate.set_property("name", &item.label());
-            /*if let Some(item) = list_item.item().and_downcast::<Candidate>() {
-                list_item.set_child(Some(&item));
-            } else {
-                log::warn!("did not work dropdown");
-            }*/
-            //list_item.child().unwrap().downcast::<Candidate>().unwrap();
+            // Check disabled state from the shared disabled_ids set
+            let is_disabled = disabled_ids.borrow().contains(&item.id());
+            candidate.set_property("disabled", &is_disabled);
         });
 
         imp.dropdown.set_factory(Some(&factory));
         imp.dropdown.set_model(Some(&model));
+    }
 
-        /*let labels: Vec<String> = candidates_ref.iter()
-            .map(|c| c.label.clone() + match c.kind { // TODO: use icons - application=window, device=speaker
-                CandidateType::Device => " (device)",
-                CandidateType::Application => " (application)",
-            })
-            .collect();
+    pub fn set_disabled_ids(&self, ids: HashSet<u32>) {
+        let imp = self.imp();
+        let selected = imp.dropdown.selected();
+        imp.disabled_ids.replace(ids);
 
-        let string_list = StringList::new(&labels.iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<&str>>());
+        // Force refresh by rebuilding the model
+        let candidates_ref = imp.candidates.borrow();
+        let model = ListStore::new::<CandidateData>();
+        for candidate in candidates_ref.iter() {
+            model.append(candidate);
+        }
+        imp.dropdown.set_model(Some(&model));
 
-        imp.dropdown.set_model(Some(&string_list));*/
+        // Restore selection
+        if selected != gtk::INVALID_LIST_POSITION {
+            imp.dropdown.set_selected(selected);
+        }
+
+        // Update confirm button sensitivity based on current selection
+        if selected != gtk::INVALID_LIST_POSITION {
+            if let Some(candidate) = candidates_ref.get(selected as usize) {
+                let is_disabled = imp.disabled_ids.borrow().contains(&candidate.id());
+                imp.confirm_btn.set_sensitive(!is_disabled);
+            }
+        }
     }
 }

@@ -626,9 +626,10 @@ impl GraphManager {
 
         // Connect to source dropdown selection
         let source_dd = main.source_dd();
-        source_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, kind| {
+        source_dd.connect_selection_confirmed(glib::clone!(@weak res, @weak main => move |_dropdown, id, kind| {
             res.imp().set_source(id, CandidateType::from_raw(kind));
             res.get_volume(id);
+            main.update_disabled_states();
         }));
 
         // Connect to source dropdown volume changes
@@ -642,15 +643,17 @@ impl GraphManager {
         }));
 
         // Connect to source dropdown selection cancelled (edit mode)
-        source_dd.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, _source_id| {
+        source_dd.connect_selection_cancelled(glib::clone!(@weak res, @weak main => move |_dropdown, _source_id| {
             res.imp().clear_source();
+            main.update_disabled_states();
         }));
 
         // Connect to target dropdown selection
         let target_dd = main.target_dd();
-        target_dd.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
+        target_dd.connect_selection_confirmed(glib::clone!(@weak res, @weak main => move |_dropdown, id, _kind| {
             res.imp().add_target(id);
             res.get_volume(id);
+            main.update_disabled_states();
         }));
 
         // Connect to target dropdown volume changes
@@ -664,15 +667,17 @@ impl GraphManager {
         }));
 
         // Connect to target dropdown selection cancelled (edit mode)
-        target_dd.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, target_id| {
+        target_dd.connect_selection_cancelled(glib::clone!(@weak res, @weak main => move |_dropdown, target_id| {
             res.imp().remove_target(target_id);
+            main.update_disabled_states();
         }));
 
         // Connect to dynamically added target dropdowns
-        main.connect_target_dropdown_added(glib::clone!(@weak res => move |_main_view, dropdown| {
-            dropdown.connect_selection_confirmed(glib::clone!(@weak res => move |_dropdown, id, _kind| {
+        main.connect_target_dropdown_added(glib::clone!(@weak res, @weak main => move |_main_view, dropdown| {
+            dropdown.connect_selection_confirmed(glib::clone!(@weak res, @weak main => move |_dropdown, id, _kind| {
                 res.imp().add_target(id);
                 res.get_volume(id);
+                main.update_disabled_states();
             }));
             dropdown.connect_volume_changed(glib::clone!(@weak res => move |_dropdown, node_id, volume| {
                 res.set_volume(node_id, volume as f32);
@@ -680,14 +685,16 @@ impl GraphManager {
             dropdown.connect_mute_changed(glib::clone!(@weak res => move |_dropdown, node_id, muted| {
                 res.set_mute(node_id, muted);
             }));
-            dropdown.connect_selection_cancelled(glib::clone!(@weak res => move |_dropdown, target_id| {
+            dropdown.connect_selection_cancelled(glib::clone!(@weak res, @weak main => move |_dropdown, target_id| {
                 res.imp().remove_target(target_id);
+                main.update_disabled_states();
             }));
         }));
 
         // Connect to target removal
-        main.connect_target_removed(glib::clone!(@weak res => move |_main_view, target_id| {
+        main.connect_target_removed(glib::clone!(@weak res, @weak main => move |_main_view, target_id| {
             res.imp().remove_target(target_id);
+            main.update_disabled_states();
         }));
 
         res
