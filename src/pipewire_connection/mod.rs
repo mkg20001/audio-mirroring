@@ -635,8 +635,8 @@ fn handle_node_props(
         return;
     };
 
-    const SPA_PROP_VOLUME: u32 = 3;
-    const SPA_PROP_MUTE: u32 = 5;
+    const SPA_PROP_VOLUME: u32 = 0x10003;
+    const SPA_PROP_MUTE: u32 = 0x10004;
     const SPA_PROP_CHANNEL_VOLUMES: u32 = 0x10008;
     const SPA_PARAM_ROUTE_PROPS: u32 = 5;
 
@@ -819,7 +819,7 @@ fn set_mute(node_id: u32, muted: bool, proxies: &Rc<RefCell<HashMap<u32, ProxyIt
     // SPA constants
     const SPA_TYPE_OBJECT_PROPS: u32 = 0x40002;
     const SPA_PARAM_PROPS: u32 = 2;
-    const SPA_PROP_MUTE: u32 = 5;
+    const SPA_PROP_MUTE: u32 = 0x10004;
 
     let pod_vec: Vec<u8> = Vec::new();
     let cursor = Cursor::new(pod_vec);
@@ -845,10 +845,36 @@ fn set_mute(node_id: u32, muted: bool, proxies: &Rc<RefCell<HashMap<u32, ProxyIt
             &*(pod_data.as_ptr() as *const pipewire::spa::pod::Pod)
         };
         proxy.set_param(ParamType::Props, 0, pod);
-        info!("Mute set for node {} to {}", node_id, muted);
+        info!("Mute set for node {} to {} via native Props", node_id, muted);
     } else {
         warn!("Failed to serialize mute pod for node {}", node_id);
     }
+
+    // Also try wpctl for device nodes
+    set_mute_wpctl(node_id, muted);
+}
+
+fn set_mute_wpctl(node_id: u32, muted: bool) {
+    let mute_str = if muted { "1" } else { "0" };
+
+    std::thread::spawn(move || {
+        match std::process::Command::new("wpctl")
+            .args(["set-mute", &node_id.to_string(), mute_str])
+            .output()
+        {
+            Ok(output) => {
+                if output.status.success() {
+                    info!("Mute set for node {} to {} via wpctl", node_id, muted);
+                } else {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    debug!("wpctl set-mute for node {} (may be expected): {}", node_id, stderr);
+                }
+            }
+            Err(e) => {
+                warn!("Failed to run wpctl: {}", e);
+            }
+        }
+    });
 }
 
 fn get_link_media_type(link_info: &LinkInfoRef) -> MediaType {
