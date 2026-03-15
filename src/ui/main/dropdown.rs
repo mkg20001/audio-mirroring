@@ -530,12 +530,17 @@ impl Dropdown {
         let selected = imp.dropdown.selected();
         imp.disabled_ids.replace(ids);
 
-        // Force refresh by rebuilding the model
+        // Rebuild the model
         let candidates_ref = imp.candidates.borrow();
         let model = ListStore::new::<CandidateData>();
         for candidate in candidates_ref.iter() {
             model.append(candidate);
         }
+
+        // Clear and re-set the factory to force GTK to re-bind the header widget
+        let factory = imp.dropdown.factory();
+        imp.dropdown.set_factory(gtk::ListItemFactory::NONE);
+        imp.dropdown.set_factory(factory.as_ref());
         imp.dropdown.set_model(Some(&model));
 
         // Restore selection
