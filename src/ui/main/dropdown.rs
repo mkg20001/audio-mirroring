@@ -190,7 +190,8 @@ mod imp {
                 }
                 let candidates = imp.candidates.borrow();
                 if let Some(candidate) = candidates.get(selected as usize) {
-                    imp.confirm_btn.set_sensitive(!candidate.disabled());
+                    let is_disabled = imp.disabled_ids.borrow().contains(&candidate.id());
+                    imp.confirm_btn.set_sensitive(!is_disabled);
                 } else {
                     imp.confirm_btn.set_sensitive(false);
                 }
